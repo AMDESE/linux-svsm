@@ -1,0 +1,12 @@
+name: Spell
+
+on: [push]
+
+jobs:
+  spell_check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Actions Repository
+      uses: actions/checkout@v3
+    - name: Spell Check Repo
+      uses: crate-ci/typos@master

@@ -1,0 +1,14 @@
+name: Merge
+
+on: [push]
+
+jobs:
+  merge_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: squalrus/merge-bot@v0.1.0
+        if: ${{ github.actor == 'dependabot[bot]' }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          labels: dependencies
+          delete_source_branch: true

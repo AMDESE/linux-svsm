@@ -1,0 +1,25 @@
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+
+verbose = [] # Print updates on serial (demo and debug purposes)
+
+[package]
+name = "linux_svsm"
+authors = ["Tom Lendacky <thomas.lendacky@amd.com>", "Carlos Bilbao <carlos.bilbao@amd.com>"]
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+x86_64 = "0.14.2"
+memoffset = "0.6"
+paste = "1.0"
+memchr = { version = "2", default-features = false }
+uuid = { version = "1", default-features = false }
+
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]

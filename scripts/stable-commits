@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+#
+# Repos/Branches for SVSM support
+# -which also means SNP support.
+#
+
+# Hypervisor commit
+KERNEL_GIT_URL="https://github.com/AMDESE/linux.git"
+KERNEL_HOST_BRANCH="svsm-preview-hv"
+KERNEL_GUEST_BRANCH="svsm-preview-guest"
+
+# qemu commit
+QEMU_GIT_URL="https://github.com/AMDESE/qemu.git"
+QEMU_BRANCH="svsm-preview"
+
+# Guest BIOS (OVMF)
+OVMF_GIT_URL="https://github.com/AMDESE/ovmf"
+OVMF_BRANCH="svsm-preview"
