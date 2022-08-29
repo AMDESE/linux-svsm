@@ -148,16 +148,38 @@ You should NEVER have to specify the cargo target, as we have
 ## Running Linux SVSM <a name="run"></a>
 
 The building process will generate svsm.bin that can be passed to Qemu (svsm
-parameter). Once the guest is up, you can check it is running on VMPL1 (lower
-privilege level) with:
+parameter). Inside directory scripts/ we provide launch-qemu.sh to ease the
+execution of the Qemu virtual machine. First, we need an empty virtual disk
+image and distribution (in our example, Ubuntu):
+
+```
+# qemu-img create -f qcow2 guest.qcow2 30G
+# wget <link-to-iso> ubuntu.iso
+```
+
+Once we have an image prepared, we can boot with the command below. In the
+Grub option of installation, you can edit the linux kernel command adding
+'console=tty0 console=ttyS0,115200n8' and then Ctr+X.
+
+```
+# ./launch-qemu.sh -hda guest.qcow2 -cdrom ubuntu.iso
+```
+
+after that, we can simply boot and install the kernel \*.debs/\*.rpms from
+within the guest VM.
+
+```
+# ./launch-qemu.sh -hda guest.qcow2
+```
+
+Finally, we will have to execute the script again, this time providing the
+SVSM binary. Once the SVSM guest is up, you can check it is running on
+VMPL1 (lower privilege level) with:
 
 ```
 [guest@snp-guest ~]$ dmesg | grep VMPL
 [    1.264552] SEV: SNP running at VMPL1.
 ```
-
-In addition, libvirt has support for SEV-enabled guests through virt-install's
-parameter launchSecurity.
 
 ## Contribution <a name="contribute"></a>
 
