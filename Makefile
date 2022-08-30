@@ -24,9 +24,11 @@ OBJS		+= $(TARGET)/liblinux_svsm.a
 
 FEATURES	:= ""
 
-all: svsm.bin
+.PHONY: all doc prereq clean superclean
 
-doc:
+all: .prereq svsm.bin
+
+doc: .prereq
 	cargo doc --open
 
 svsm.bin: svsm.bin.elf
@@ -45,7 +47,9 @@ svsm.bin.elf: $(OBJS) src/start/svsm.lds
 %.lds: %.lds.S
 	$(GCC) $(A_FLAGS) -E -P -o $@ $<
 
-prereq:
+prereq: .prereq
+
+.prereq:
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 	source $(HOME)/.cargo/env
 	echo "source $(HOME)/.cargo/env" >> ~/.bashrc
@@ -55,8 +59,12 @@ prereq:
 	rustup override set nightly
 	cargo install xargo
 	cargo install bootimage
+	touch .prereq
 
 clean:
 	@xargo clean 
 	rm -f svsm.bin svsm.bin.elf $(OBJS)
 	rm -rf $(TARGET_DIR)
+
+superclean: clean
+	rm -f .prereq

@@ -36,6 +36,8 @@ Generate and read source code documentation with:
 # make doc
 ```
 
+which will also install necessary prerequisites.
+
 ## Preparing the host <a name="host"></a>
 
 Linux SVSM assumes a host with support for AMD's SEV-SNP, as well as
@@ -143,7 +145,12 @@ To build with serial output progress information, for debugging:
 ```
 
 You should NEVER have to specify the cargo target, as we have
-.cargo/config.toml.
+.cargo/config.toml. The Makefile includes a basic clean target. To
+force prerequisites re-installation on the next execution of make do:
+
+```
+# make superclean
+```
 
 ## Running Linux SVSM <a name="run"></a>
 
