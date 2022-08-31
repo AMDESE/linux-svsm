@@ -24,6 +24,14 @@ OBJS		+= $(TARGET)/liblinux_svsm.a
 
 FEATURES	:= ""
 
+## Memory layout
+
+SVSM_GPA	:= 0x8000000000
+SVSM_MEM	:= 0x10000000
+LDS_FLAGS	:= -DSVSM_GPA_LDS="$(SVSM_GPA)"
+LDS_FLAGS	+= -DSVSM_GPA="$(SVSM_GPA)ULL"
+LDS_FLAGS	+= -DSVSM_MEM="$(SVSM_MEM)ULL"
+
 .PHONY: all doc prereq clean superclean
 
 all: .prereq svsm.bin
@@ -42,10 +50,10 @@ svsm.bin.elf: $(OBJS) src/start/svsm.lds
 	@xargo build --features $(FEATURES)
 
 %.o: %.S src/start/svsm.h
-	$(GCC) $(C_FLAGS) $(A_FLAGS) -c -o $@ $<
+	$(GCC) $(C_FLAGS) $(LDS_FLAGS) $(A_FLAGS) -c -o $@ $<
 
 %.lds: %.lds.S src/start/svsm.h
-	$(GCC) $(A_FLAGS) -E -P -o $@ $<
+	$(GCC) $(A_FLAGS) $(LDS_FLAGS) -E -P -o $@ $<
 
 prereq: .prereq
 
@@ -65,6 +73,7 @@ clean:
 	@xargo clean 
 	rm -f svsm.bin svsm.bin.elf $(OBJS)
 	rm -rf $(TARGET_DIR)
+	rm -f src/start/svsm.lds
 
 superclean: clean
 	rm -f .prereq

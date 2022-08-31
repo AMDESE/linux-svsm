@@ -192,6 +192,13 @@ VMPL1 (lower privilege level) with:
 [    1.264552] SEV: SNP running at VMPL1.
 ```
 
+By default, SVSM lives at 512 GB (SVSM\_GPA), and has 256 MB of memory
+(SVSM\_MEM). This can be changed at compilation. For example:
+
+```
+# make SVSM_GPA=0x90000000 SVSM_MEM=0x20000000
+```
+
 ## Contribution <a name="contribute"></a>
 
 Please read CONTRIBUTING.md for instructions on contribution and style.

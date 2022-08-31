@@ -42,9 +42,18 @@ _name:
 #define PAGE_2MB_MASK			~(PAGE_2MB_SIZE - 1)
 #define PAGE_2MB_ALIGNED(x)		ALIGNED((u64)(x), PAGE_2MB_SIZE)
 
+#ifndef SVSM_GPA_LDS
 #define SVSM_GPA_LDS			0x8000000000
+#endif /* SVSM_GPA_LDS */
+
+#ifndef SVSM_GPA
 #define SVSM_GPA			0x8000000000ULL	/* 512 GB start */
+#endif /* SVSM_GPA */
+
+#ifndef SVSM_MEM
 #define SVSM_MEM			0x10000000ULL	/* 256 MB of memory */
+#endif /* SVSM_MEM */
+
 #define SVSM_PAGES			(SVSM_MEM / PAGE_SIZE)
 
 #define SVSM_EFER			0x00001d00	/* SVME, NXE, LMA, LME */
