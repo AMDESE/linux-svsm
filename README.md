@@ -176,7 +176,10 @@ after that, we can simply boot and install the kernel \*.debs/\*.rpms from
 within the guest VM.
 
 ```
-# ./launch-qemu.sh -hda guest.qcow2
+[host@snp-host ~]#  ./launch-qemu.sh -hda guest.qcow2
+[guest@snp-guest ~]# scp host@ip:/<dir>/scripts/linux/<version>*guest*.deb .
+[guest@snp-guest ~]# chmod +x *.deb && dpkg -i *.deb
+[guest@snp-guest ~]# reboot
 ```
 
 Finally, we will have to execute the script again, this time providing the
@@ -184,7 +187,8 @@ SVSM binary. Once the SVSM guest is up, you can check it is running on
 VMPL1 (lower privilege level) with:
 
 ```
-[guest@snp-guest ~]$ dmesg | grep VMPL
+[host@snp-host ~]#  ./launch-qemu.sh -hda guest.qcow2 -sev-snp -svsm svsm.bin
+[guest@snp-guest ~]# dmesg | grep VMPL
 [    1.264552] SEV: SNP running at VMPL1.
 ```
 
