@@ -80,6 +80,22 @@ macro_rules! ALIGN {
     };
 }
 
+/// Check if x is aligned to y
+#[macro_export]
+macro_rules! ALIGNED {
+    ($x: expr, $y: expr) => {
+        ($x == ALIGN!(($x), ($y)))
+    };
+}
+
+/// Check if address is 2MB aligned
+#[macro_export]
+macro_rules! PAGE_2MB_ALIGNED {
+    ($x: expr) => {
+        ALIGNED!($x, PAGE_2MB_SIZE)
+    };
+}
+
 /// Retrieve number of pages that a given value contains
 #[macro_export]
 macro_rules! PAGE_COUNT {
