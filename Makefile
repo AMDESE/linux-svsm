@@ -41,10 +41,10 @@ svsm.bin.elf: $(OBJS) src/start/svsm.lds
 %.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/util/*.rs
 	@xargo build --features $(FEATURES)
 
-%.o: %.S
+%.o: %.S src/start/svsm.h
 	$(GCC) $(C_FLAGS) $(A_FLAGS) -c -o $@ $<
 
-%.lds: %.lds.S
+%.lds: %.lds.S src/start/svsm.h
 	$(GCC) $(A_FLAGS) -E -P -o $@ $<
 
 prereq: .prereq

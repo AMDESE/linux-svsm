@@ -59,3 +59,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Others
+*.lds
+.prereq
