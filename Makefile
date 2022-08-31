@@ -43,7 +43,6 @@ svsm.bin: svsm.bin.elf
 	objcopy -g -O binary $< $@
 
 svsm.bin.elf: $(OBJS) src/start/svsm.lds
-	@xargo build --features $(FEATURES)
 	$(GCC) $(LD_FLAGS) -o $@ $(OBJS)
 
 %.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/util/*.rs
