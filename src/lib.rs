@@ -89,12 +89,30 @@ fn check_vmpl_level() {
     }
 }
 
+/// Check addresses are appropriately aligned and within boundaries
+fn check_svsm_address() {
+    unsafe {
+        let total_size: u64 = svsm_end - svsm_begin;
+        if !PAGE_2MB_ALIGNED!(svsm_begin) || !PAGE_2MB_ALIGNED!(total_size) {
+            vc_terminate_svsm_general();
+        }
+        // svsm_end is SVSM_GPA + SVSM_MEM. dyn_mem_begin is calculated based on
+        // edata, so make sure it is within boundaries
+        if svsm_end < dyn_mem_begin {
+            vc_terminate_svsm_general();
+        }
+    }
+}
+
 /// Main function. Initialize everything and start request loop.
 /// This function never returns.
 #[no_mangle]
 pub extern "C" fn svsm_main() -> ! {
     // Ensure execution at VMPL0
     check_vmpl_level();
+
+    // Ensure SVSM addresses and sizes are appropiate
+    check_svsm_address();
 
     // Initialize exception/interrupt handling
     idt_init();
