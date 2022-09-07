@@ -2,7 +2,8 @@
 /*
  * Copyright (C) 2022 Advanced Micro Devices, Inc.
  *
- * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Tom Lendacky <thomas.lendacky@amd.com> and
+ *	   Carlos Bilbao <carlos.bilbao@amd.com>
  */
 
 #include "svsm.h"
@@ -50,4 +51,6 @@ SECTIONS
 		*(.note.GNU-stack)
 		*(.note.gnu.build-id)
 	}
+
+	. = ASSERT(!(SVSM_GPA_LDS & 0xfffff), "SVSM_GPA not 2MB aligned! make clean and try again...");
 }
