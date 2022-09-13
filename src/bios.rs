@@ -114,6 +114,19 @@ struct SnpSecrets {
     reserved3: [u8; 3],
 }
 
+#[allow(dead_code)]
+impl SnpSecrets {
+    pub fn clear_vmpck0(&mut self) {
+        self.vmpck0.iter_mut().for_each(|e| *e = 0);
+    }
+
+    funcs!(svsm_base, u64);
+    funcs!(svsm_size, u64);
+    funcs!(svsm_caa, u64);
+    funcs!(svsm_max_version, u32);
+    funcs!(svsm_guest_vmpl, u8);
+}
+
 /// 96b582de-1fb2-45f7-baea-a366c55a082d
 const OVMF_TABLE_GUID: &str = "96b582de-1fb2-45f7-baea-a366c55a082d";
 /// dc886566-984a-4798-A75e-5585a7bf67cc
@@ -234,14 +247,14 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
     *bios_secrets = *svsm_secrets;
 
     // Clear the VMPCK0 key
-    (*bios_secrets).vmpck0.iter_mut().for_each(|e| *e = 0);
+    (*bios_secrets).clear_vmpck0();
 
     // Advertise the SVSM
-    (*bios_secrets).svsm_base = svsm_begin;
-    (*bios_secrets).svsm_size = svsm_end - svsm_begin;
-    (*bios_secrets).svsm_caa = caa.as_u64();
-    (*bios_secrets).svsm_max_version = 1;
-    (*bios_secrets).svsm_guest_vmpl = 1;
+    (*bios_secrets).set_svsm_base(svsm_begin);
+    (*bios_secrets).set_svsm_size(svsm_end - svsm_begin);
+    (*bios_secrets).set_svsm_caa(caa.as_u64());
+    (*bios_secrets).set_svsm_max_version(1);
+    (*bios_secrets).set_svsm_guest_vmpl(1);
 
     let section: SnpSection = match find_snp_section(bios_info, SNP_SECT_CPUID) {
         Some(p) => p,
@@ -303,9 +316,9 @@ fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
             return false;
         }
 
-        bios_info.guid_table.begin = bios as u64 - *len as u64;
-        bios_info.guid_table.end = len as u64;
-        bios_info.guid_table.len = *len;
+        bios_info.guid_table.set_begin(bios as u64 - *len as u64);
+        bios_info.guid_table.set_end(len as u64);
+        bios_info.guid_table.set_len(*len);
     }
 
     true
