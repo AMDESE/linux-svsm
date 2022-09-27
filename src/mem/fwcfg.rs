@@ -10,7 +10,7 @@ use crate::cpu::pause;
 use crate::cpu::vc::vc_terminate_svsm_fwcfg;
 use crate::cpu::*;
 use crate::globals::*;
-use crate::mem::dynam::mem_allocate_frame;
+use crate::mem::mem_allocate_frame;
 use crate::mem::pgtable::*;
 use crate::util::locking::{LockGuard, SpinLock};
 use crate::*;

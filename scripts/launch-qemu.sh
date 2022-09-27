@@ -121,8 +121,18 @@ get_cbitpos() {
 	#     the first 4 bytes (EAX) and then convert 4 bytes.
 	#
 
-	EBX=$(dd if=/dev/cpu/0/cpuid ibs=16 count=32 skip=134217728 | tail -c 16 | od -An -t u4 -j 4 -N 4 | sed -re 's|^ *||')
-	CBITPOS=$((EBX & 0x3f))
+	cat <<EOF > tmp-cbit.c
+#include <stdio.h>
+int main() {
+	unsigned int eax, ebx, ecx, edx;
+	asm volatile("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "0"(0x8000001f) : "memory");
+	printf("%d\n", ebx & 0x3f);
+}
+EOF
+
+	make tmp-cbit > /dev/null 2>&1
+	CBITPOS=`./tmp-cbit`
+	rm -f tmp-cbit tmp-cbit.c
 }
 
 exit_from_int() {

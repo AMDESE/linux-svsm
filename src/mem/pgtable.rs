@@ -10,8 +10,8 @@ use crate::cpu::vc::*;
 use crate::cpu::vc_make_page_private;
 use crate::cpu::vc_make_page_shared;
 use crate::cpu::vc_terminate;
-use crate::dynam::mem_allocate_frame;
 use crate::globals::*;
+use crate::mem::mem_allocate_frame;
 use crate::util::locking::SpinLock;
 use crate::*;
 

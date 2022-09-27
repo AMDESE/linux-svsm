@@ -67,19 +67,30 @@ pub extern "C" fn ap_entry() -> ! {
 }
 
 fn alloc_vmsa() -> PhysFrame {
-    let mut frame: PhysFrame = match mem_allocate_frames(2) {
+    // Allocate one frame
+    let mut frame: PhysFrame = match mem_allocate_frames(1) {
         Some(f) => f,
         None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
     };
 
+    // VMSA pages must not be 2MB aligned, check for that
     if frame.start_address().is_aligned(PAGE_2MB_SIZE) {
+        // Free aligned frame
         mem_free_frame(frame);
-        frame += 1;
-    } else {
-        mem_free_frame(frame + 1);
+
+        // Allocate two frames and ...
+        frame = match mem_allocate_frames(2) {
+            Some(f) => f,
+            None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        };
+
+        // ... chose a frame which is not 2MB aligned
+        if frame.start_address().is_aligned(PAGE_2MB_SIZE) {
+            frame += 1;
+        }
     }
 
-    frame
+    return frame;
 }
 
 unsafe fn __create_bios_vmsa(vmsa_va: VirtAddr) {
