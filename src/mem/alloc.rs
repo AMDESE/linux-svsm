@@ -90,8 +90,8 @@ impl FreeInfo {
     }
 
     pub fn decode(mem: PageStorageType) -> Self {
-        let next = ((mem.0 & PAGE_FREE_NEXT_MASK) >> PAGE_FREE_NEXT_SHIFT) as usize;
-        let order = ((mem.0 >> PAGE_TYPE_SHIFT) & PAGE_ORDER_MASK) as usize;
+        let next: usize = ((mem.0 & PAGE_FREE_NEXT_MASK) >> PAGE_FREE_NEXT_SHIFT) as usize;
+        let order: usize = ((mem.0 >> PAGE_TYPE_SHIFT) & PAGE_ORDER_MASK) as usize;
         FreeInfo {
             next_page: next,
             order: order,
@@ -109,7 +109,9 @@ impl AllocatedInfo {
     }
 
     pub fn decode(mem: PageStorageType) -> Self {
-        let order = ((mem.0 >> PAGE_TYPE_SHIFT) & PAGE_ORDER_MASK) as usize;
+        let order: usize = ((mem.0 >> PAGE_TYPE_SHIFT) & PAGE_ORDER_MASK)
+            .try_into()
+            .unwrap();
         AllocatedInfo { order: order }
     }
 }
@@ -140,7 +142,7 @@ impl CompoundInfo {
     }
 
     pub fn decode(mem: PageStorageType) -> Self {
-        let order = ((mem.0 >> PAGE_TYPE_SHIFT) & PAGE_ORDER_MASK) as usize;
+        let order: usize = ((mem.0 >> PAGE_TYPE_SHIFT) & PAGE_ORDER_MASK) as usize;
         CompoundInfo { order: order }
     }
 }
@@ -177,7 +179,7 @@ impl SvsmPageInfo {
     }
 
     pub fn from_mem(mem: PageStorageType) -> Self {
-        let page_type = mem.0 & PAGE_TYPE_MASK;
+        let page_type: u64 = mem.0 & PAGE_TYPE_MASK;
 
         if page_type == PAGE_TYPE_FREE {
             SvsmPageInfo::Free(FreeInfo::decode(mem))
@@ -234,8 +236,8 @@ impl MemoryRegion {
     }
 
     fn page_info_virt_addr(&self, pfn: usize) -> VirtAddr {
-        let size = size_of::<PageStorageType>();
-        let virt = self.start_virt;
+        let size: usize = size_of::<PageStorageType>();
+        let virt: VirtAddr = self.start_virt;
         virt + ((pfn as usize) * size)
     }
 
@@ -266,7 +268,7 @@ impl MemoryRegion {
     fn read_page_info(&self, pfn: usize) -> SvsmPageInfo {
         self.check_pfn(pfn);
 
-        let virt = self.page_info_virt_addr(pfn);
+        let virt: VirtAddr = self.page_info_virt_addr(pfn);
         let info: PageStorageType = PageStorageType(unsafe { *(virt.as_u64() as *const u64) });
 
         SvsmPageInfo::from_mem(info)
@@ -277,21 +279,21 @@ impl MemoryRegion {
             return Err(());
         }
 
-        let pfn = (vaddr - self.start_virt) / PAGE_SIZE;
+        let pfn: usize = ((vaddr - self.start_virt) / PAGE_SIZE) as usize;
 
-        Ok(self.read_page_info(pfn as usize))
+        Ok(self.read_page_info(pfn))
     }
 
     fn get_next_page(&mut self, order: usize) -> Result<usize, ()> {
-        let pfn = self.next_page[order];
+        let pfn: usize = self.next_page[order];
 
         if pfn == 0 {
             return Err(());
         }
 
-        let pg = self.read_page_info(pfn);
+        let pg: SvsmPageInfo = self.read_page_info(pfn);
 
-        let new_next = match pg {
+        let new_next: usize = match pg {
             SvsmPageInfo::Free(fi) => fi.next_page,
             _ => panic!("Unexpected page type in MemoryRegion::get_next_page()"),
         };
@@ -306,14 +308,14 @@ impl MemoryRegion {
     fn init_compound_page(&mut self, pfn: usize, order: usize, next_pfn: usize) {
         let nr_pages: usize = 1 << order;
 
-        let head = SvsmPageInfo::Free(FreeInfo {
+        let head: SvsmPageInfo = SvsmPageInfo::Free(FreeInfo {
             next_page: next_pfn,
             order: order,
         });
         self.write_page_info(pfn, head);
 
         for i in 1..nr_pages {
-            let compound = SvsmPageInfo::CompoundPage(CompoundInfo { order: order });
+            let compound: SvsmPageInfo = SvsmPageInfo::CompoundPage(CompoundInfo { order: order });
             self.write_page_info(pfn + i, compound);
         }
     }
@@ -323,11 +325,11 @@ impl MemoryRegion {
             return Err(());
         }
 
-        let new_order = order - 1;
-        let pfn1 = pfn;
-        let pfn2 = pfn + (1usize << new_order);
+        let new_order: usize = order - 1;
+        let pfn1: usize = pfn;
+        let pfn2: usize = pfn + (1usize << new_order);
 
-        let next_pfn = self.next_page[new_order];
+        let next_pfn: usize = self.next_page[new_order];
         self.init_compound_page(pfn1, new_order, pfn2);
         self.init_compound_page(pfn2, new_order, next_pfn);
         self.next_page[new_order] = pfn1;
@@ -351,7 +353,7 @@ impl MemoryRegion {
 
         self.refill_page_list(order + 1)?;
 
-        let pfn = self.get_next_page(order + 1)?;
+        let pfn: usize = self.get_next_page(order + 1)?;
 
         self.split_page(pfn, order + 1)
     }
@@ -362,9 +364,9 @@ impl MemoryRegion {
         }
         self.refill_page_list(order)?;
         if let Ok(pfn) = self.get_next_page(order) {
-            let pg = SvsmPageInfo::Allocated(AllocatedInfo { order: order });
+            let pg: SvsmPageInfo = SvsmPageInfo::Allocated(AllocatedInfo { order: order });
             self.write_page_info(pfn, pg);
-            let vaddr = self.start_virt + (pfn * PAGE_SIZE as usize);
+            let vaddr: VirtAddr = self.start_virt + (pfn * PAGE_SIZE as usize);
             return Ok(vaddr);
         } else {
             return Err(());
@@ -379,9 +381,9 @@ impl MemoryRegion {
         self.refill_page_list(0)?;
         if let Ok(pfn) = self.get_next_page(0) {
             assert!(slab.as_u64() & PAGE_TYPE_MASK == 0);
-            let pg = SvsmPageInfo::SlabPage(SlabPageInfo { slab: slab });
+            let pg: SvsmPageInfo = SvsmPageInfo::SlabPage(SlabPageInfo { slab: slab });
             self.write_page_info(pfn, pg);
-            let vaddr = self.start_virt + (pfn * PAGE_SIZE as usize);
+            let vaddr: VirtAddr = self.start_virt + (pfn * PAGE_SIZE as usize);
             return Ok(vaddr);
         } else {
             return Err(());
@@ -405,14 +407,15 @@ impl MemoryRegion {
             return Err(());
         }
 
-        let vaddr = VirtAddr::new(self.pfn_to_virt(pfn).as_u64() & MemoryRegion::order_mask(order));
-        let neigh = VirtAddr::new(vaddr.as_u64() ^ (PAGE_SIZE << order));
+        let vaddr: VirtAddr =
+            VirtAddr::new(self.pfn_to_virt(pfn).as_u64() & MemoryRegion::order_mask(order));
+        let neigh: VirtAddr = VirtAddr::new(vaddr.as_u64() ^ (PAGE_SIZE << order));
 
         if vaddr < self.start_virt || neigh < self.start_virt {
             return Err(());
         }
 
-        let pfn = self.virt_to_pfn(neigh);
+        let pfn: usize = self.virt_to_pfn(neigh);
         if pfn >= self.page_count {
             return Err(());
         }
@@ -426,15 +429,15 @@ impl MemoryRegion {
         }
 
         let nr_pages: usize = 1 << order + 1;
-        let pfn = if pfn1 < pfn2 { pfn1 } else { pfn2 };
+        let pfn: usize = if pfn1 < pfn2 { pfn1 } else { pfn2 };
 
         // Write new compound head
-        let pg = SvsmPageInfo::Allocated(AllocatedInfo { order: order + 1 });
+        let pg: SvsmPageInfo = SvsmPageInfo::Allocated(AllocatedInfo { order: order + 1 });
         self.write_page_info(pfn, pg);
 
         // Write compound pages
         for i in 1..nr_pages {
-            let pg = SvsmPageInfo::CompoundPage(CompoundInfo { order: order + 1 });
+            let pg: SvsmPageInfo = SvsmPageInfo::CompoundPage(CompoundInfo { order: order + 1 });
             self.write_page_info(pfn + i, pg);
         }
 
@@ -447,7 +450,7 @@ impl MemoryRegion {
     }
 
     fn next_free_pfn(&self, pfn: usize, order: usize) -> usize {
-        let page = self.read_page_info(pfn);
+        let page: SvsmPageInfo = self.read_page_info(pfn);
         match page {
             SvsmPageInfo::Free(fi) => fi.next_page,
             _ => {
@@ -457,7 +460,7 @@ impl MemoryRegion {
     }
 
     fn allocate_pfn(&mut self, pfn: usize, order: usize) -> Result<(), ()> {
-        let first_pfn = self.next_page[order];
+        let first_pfn: usize = self.next_page[order];
 
         // Handle special cases first
         if first_pfn == 0 {
@@ -470,20 +473,20 @@ impl MemoryRegion {
         }
 
         // Now walk the list
-        let mut old_pfn = first_pfn;
+        let mut old_pfn: usize = first_pfn;
         loop {
-            let current_pfn = self.next_free_pfn(old_pfn, order);
+            let current_pfn: usize = self.next_free_pfn(old_pfn, order);
             if current_pfn == 0 {
                 break;
             } else if current_pfn == pfn {
-                let next_pfn = self.next_free_pfn(current_pfn, order);
-                let pg = SvsmPageInfo::Free(FreeInfo {
+                let next_pfn: usize = self.next_free_pfn(current_pfn, order);
+                let pg: SvsmPageInfo = SvsmPageInfo::Free(FreeInfo {
                     next_page: next_pfn,
                     order: order,
                 });
                 self.write_page_info(old_pfn, pg);
 
-                let pg = SvsmPageInfo::Allocated(AllocatedInfo { order: order });
+                let pg: SvsmPageInfo = SvsmPageInfo::Allocated(AllocatedInfo { order: order });
                 self.write_page_info(current_pfn, pg);
 
                 self.free_pages[order] -= 1;
@@ -498,8 +501,8 @@ impl MemoryRegion {
     }
 
     fn free_page_raw(&mut self, pfn: usize, order: usize) {
-        let old_next = self.next_page[order];
-        let pg = SvsmPageInfo::Free(FreeInfo {
+        let old_next: usize = self.next_page[order];
+        let pg: SvsmPageInfo = SvsmPageInfo::Free(FreeInfo {
             next_page: old_next,
             order: order,
         });
@@ -511,8 +514,8 @@ impl MemoryRegion {
     }
 
     fn try_to_merge_page(&mut self, pfn: usize, order: usize) -> Result<usize, ()> {
-        let neighbor_pfn = self.compound_neighbor(pfn, order)?;
-        let neighbor_page = self.read_page_info(neighbor_pfn);
+        let neighbor_pfn: usize = self.compound_neighbor(pfn, order)?;
+        let neighbor_page: SvsmPageInfo = self.read_page_info(neighbor_pfn);
 
         if let SvsmPageInfo::Free(fi) = neighbor_page {
             if fi.order != order {
@@ -521,7 +524,7 @@ impl MemoryRegion {
 
             self.allocate_pfn(neighbor_pfn, order)?;
 
-            let new_pfn = self.merge_pages(pfn, neighbor_pfn, order)?;
+            let new_pfn: usize = self.merge_pages(pfn, neighbor_pfn, order)?;
 
             Ok(new_pfn)
         } else {
@@ -547,7 +550,7 @@ impl MemoryRegion {
             return;
         }
 
-        let pfn = ((vaddr - self.start_virt) / PAGE_SIZE) as usize;
+        let pfn: usize = ((vaddr - self.start_virt) / PAGE_SIZE) as usize;
 
         match res.unwrap() {
             SvsmPageInfo::Allocated(ai) => {
@@ -577,7 +580,7 @@ impl MemoryRegion {
 
         /* Mark all pages as allocated */
         for i in meta_pages..self.page_count {
-            let pg = SvsmPageInfo::Allocated(AllocatedInfo { order: 0 });
+            let pg: SvsmPageInfo = SvsmPageInfo::Allocated(AllocatedInfo { order: 0 });
             self.write_page_info(i, pg);
         }
 
@@ -607,7 +610,7 @@ pub fn free_page(vaddr: VirtAddr) {
 }
 
 pub fn mem_free_frames(frame: PhysFrame, _count: u64) {
-    let vaddr = pgtable_pa_to_va(frame.start_address());
+    let vaddr: VirtAddr = pgtable_pa_to_va(frame.start_address());
     free_page(vaddr);
 }
 
@@ -616,10 +619,10 @@ pub fn mem_free_frame(frame: PhysFrame) {
 }
 
 pub fn mem_allocate_frames(count: u64) -> Option<PhysFrame> {
-    let order = SvsmAllocator::get_order((count * PAGE_SIZE) as usize);
+    let order: usize = SvsmAllocator::get_order((count * PAGE_SIZE) as usize);
     let result = ROOT_MEM.lock().allocate_pages(order);
 
-    let frame: Option<PhysFrame> = match result {
+    let frame = match result {
         Ok(vaddr) => Some(PhysFrame::from_start_address(pgtable_va_to_pa(vaddr)).unwrap()),
         Err(_e) => None,
     };
@@ -714,13 +717,13 @@ impl SlabPage {
         }
 
         for i in 0..self.capacity {
-            let idx = (i / 64) as usize;
-            let mask = 1u64 << (i % 64);
+            let idx: usize = (i / 64).into();
+            let mask: u64 = 1u64 << (i % 64);
 
             if self.used_bitmap[idx] & mask == 0 {
                 self.used_bitmap[idx] |= mask;
                 self.free -= 1;
-                let offset = (self.item_size * i) as u64;
+                let offset: u64 = (self.item_size * i).into();
                 return Ok(self.vaddr + offset);
             }
         }
@@ -735,11 +738,11 @@ impl SlabPage {
 
         assert!(self.item_size > 0);
 
-        let item_size = self.item_size as u64;
-        let offset = vaddr - self.vaddr;
-        let i = offset / item_size;
-        let idx = (i / 64) as usize;
-        let mask = 1u64 << (i % 64);
+        let item_size: u64 = self.item_size.into();
+        let offset: u64 = vaddr - self.vaddr;
+        let i: u64 = offset / item_size;
+        let idx: usize = (i / 64) as usize;
+        let mask: u64 = 1u64 << (i % 64);
 
         self.used_bitmap[idx] &= !mask;
         self.free += 1;
@@ -773,7 +776,7 @@ impl Slab {
     }
 
     pub fn init(&mut self) -> Result<(), ()> {
-        let slab_vaddr = VirtAddr::new((self as *mut Slab) as u64);
+        let slab_vaddr: VirtAddr = VirtAddr::new((self as *mut Slab) as u64);
         if let Err(_e) = self.page.init(slab_vaddr, self.item_size) {
             return Err(());
         }
@@ -795,9 +798,9 @@ impl Slab {
             return Ok(());
         }
 
-        let page_vaddr = SLAB_PAGE_SLAB.lock().allocate().unwrap();
-        let slab_page = page_vaddr.as_u64() as *mut SlabPage;
-        let slab_vaddr = VirtAddr::new((self as *mut Slab) as u64);
+        let page_vaddr: VirtAddr = SLAB_PAGE_SLAB.lock().allocate().unwrap();
+        let slab_page: *mut SlabPage = page_vaddr.as_u64() as *mut SlabPage;
+        let slab_vaddr: VirtAddr = VirtAddr::new((self as *mut Slab) as u64);
 
         *slab_page = SlabPage::new();
         if let Err(_e) = (*slab_page).init(slab_vaddr, self.item_size) {
@@ -805,11 +808,11 @@ impl Slab {
             return Err(());
         }
 
-        let old_next_page = self.page.get_next_page();
+        let old_next_page: VirtAddr = self.page.get_next_page();
         (*slab_page).set_next_page(old_next_page);
         self.page.set_next_page(page_vaddr);
 
-        let new_capacity = (*slab_page).get_capacity() as u32;
+        let new_capacity: u32 = (*slab_page).get_capacity().into();
         self.pages += 1;
         self.free_pages += 1;
         self.capacity += new_capacity;
@@ -819,20 +822,20 @@ impl Slab {
     }
 
     unsafe fn shrink_slab(&mut self) {
-        let mut last_page = &mut self.page as *mut SlabPage;
-        let mut page_vaddr = self.page.get_next_page();
+        let mut last_page: *mut SlabPage = &mut self.page;
+        let mut page_vaddr: VirtAddr = self.page.get_next_page();
 
         loop {
             if page_vaddr.as_u64() == 0 {
                 break;
             }
 
-            let slab_page = page_vaddr.as_u64() as *mut SlabPage;
-            let capacity = (*slab_page).get_capacity();
-            let free = (*slab_page).get_free();
+            let slab_page: *mut SlabPage = page_vaddr.as_u64() as *mut SlabPage;
+            let capacity: u16 = (*slab_page).get_capacity();
+            let free: u16 = (*slab_page).get_free();
 
             if free == capacity {
-                let capacity = (*slab_page).get_capacity() as u32;
+                let capacity: u32 = (*slab_page).get_capacity().into();
                 self.pages -= 1;
                 self.free_pages -= 1;
                 self.capacity -= capacity;
@@ -874,14 +877,14 @@ impl Slab {
             return Err(());
         }
 
-        let mut page = &mut self.page as *mut SlabPage;
+        let mut page: *mut SlabPage = &mut self.page;
 
         unsafe {
             loop {
-                let free = (*page).get_free();
+                let free: u16 = (*page).get_free();
 
                 if let Ok(vaddr) = (*page).allocate() {
-                    let capacity = (*page).get_capacity();
+                    let capacity: u16 = (*page).get_capacity();
                     self.free -= 1;
 
                     if free == capacity {
@@ -893,7 +896,7 @@ impl Slab {
                     return Ok(vaddr);
                 }
 
-                let next_page = (*page).get_next_page();
+                let next_page: VirtAddr = (*page).get_next_page();
 
                 if next_page.as_u64() == 0 {
                     break;
@@ -907,14 +910,14 @@ impl Slab {
     }
 
     pub fn deallocate(&mut self, vaddr: VirtAddr) {
-        let mut page = &mut self.page as *mut SlabPage;
+        let mut page: *mut SlabPage = &mut self.page;
 
         unsafe {
             loop {
-                let free = (*page).get_free();
+                let free: u16 = (*page).get_free();
 
                 if let Ok(_o) = (*page).free(vaddr) {
-                    let capacity = (*page).get_capacity();
+                    let capacity: u16 = (*page).get_capacity();
                     self.free += 1;
 
                     if free == 0 {
@@ -929,7 +932,7 @@ impl Slab {
                     return;
                 }
 
-                let next_page = (*page).get_next_page();
+                let next_page: VirtAddr = (*page).get_next_page();
 
                 if next_page.as_u64() == 0 {
                     break;
@@ -973,7 +976,7 @@ impl SvsmAllocator {
 
     fn get_order(size: usize) -> usize {
         assert!(size > 0);
-        let mut val = (size - 1) >> PAGE_SHIFT;
+        let mut val: usize = (size - 1) >> PAGE_SHIFT;
         let mut order: usize = 0;
 
         loop {
@@ -992,7 +995,7 @@ impl SvsmAllocator {
 unsafe impl GlobalAlloc for SvsmAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ret: Result<VirtAddr, ()>;
-        let size = layout.size();
+        let size: usize = layout.size();
 
         SLAB_PAGE_SLAB
             .lock()
@@ -1016,7 +1019,7 @@ unsafe impl GlobalAlloc for SvsmAllocator {
         } else if size <= 4096 {
             ret = allocate_page();
         } else {
-            let order = SvsmAllocator::get_order(size);
+            let order: usize = SvsmAllocator::get_order(size);
             if order >= MAX_ORDER {
                 return ptr::null_mut();
             }
@@ -1031,22 +1034,22 @@ unsafe impl GlobalAlloc for SvsmAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-        let virt_addr = VirtAddr::new(ptr as u64);
+        let virt_addr: VirtAddr = VirtAddr::new(ptr as u64);
 
-        let result = ROOT_MEM.lock().get_page_info(virt_addr);
+        let result: Result<SvsmPageInfo, ()> = ROOT_MEM.lock().get_page_info(virt_addr);
 
         if let Err(_e) = result {
             panic!("Freeing unknown memory");
         }
 
-        let info = result.unwrap();
+        let info: SvsmPageInfo = result.unwrap();
 
         match info {
             SvsmPageInfo::Allocated(_ai) => {
                 free_page(virt_addr);
             }
             SvsmPageInfo::SlabPage(si) => {
-                let slab = si.slab.as_u64() as *mut Slab;
+                let slab: *mut Slab = si.slab.as_u64() as *mut Slab;
 
                 (*slab).deallocate(virt_addr);
             }
