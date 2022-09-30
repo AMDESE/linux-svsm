@@ -236,6 +236,8 @@ while [ -n "$1" ]; do
 	shift
 done
 
+[ -n "$SVSM" ] && SNP_FLAGS=$((SNP_FLAGS | 0x04))
+
 [ -z "$UEFI_BIOS_CODE" ] && UEFI_BIOS_CODE="./OVMF_CODE.fd"
 TMP="$(readlink -e $UEFI_BIOS_CODE)"
 [ -z "$TMP" ] && {
