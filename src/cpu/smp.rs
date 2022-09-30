@@ -23,31 +23,50 @@ use x86_64::structures::DescriptorTablePointer;
 
 /// Bit 4
 const SEGMENT_TYPE_PRESENT: u16 = BIT!(4);
+/// Bit 7
 const SEGMENT_TYPE_SUPERVISOR: u16 = BIT!(7);
+/// Bit 9
 const SEGMENT_TYPE_LONGMODE: u16 = BIT!(9);
 
+/// 0x18
 const SVSM_CS_SELECTOR: u16 = 0x18;
 const SVSM_CS_TYPE: u16 =
     0x0a | SEGMENT_TYPE_PRESENT | SEGMENT_TYPE_SUPERVISOR | SEGMENT_TYPE_LONGMODE;
+/// 0xffffffff
 const SVSM_CS_LIMIT: u32 = 0xffffffff;
+/// 0
 const SVSM_CS_BASE: u64 = 0;
 
+/// 0x80010033
 const SVSM_CR0: u64 = 0x80010033; /* PG, WP, NE, ET, MP, PE */
+/// 0x668
 const SVSM_CR4: u64 = 0x668; /* OSXMMEXCPT, OSFXSR, MCE, PAE, DE */
+/// 0xffff0ff0
 const SVSM_DR6: u64 = 0xffff0ff0;
+/// 0x400
 const SVSM_DR7: u64 = 0x400;
+/// 0x1d00
 const SVSM_EFER: u64 = 0x1d00; /* SVME, NXE, LMA, LME */
+/// 0x0007040600070406
 const SVSM_GPAT: u64 = 0x0007040600070406;
+/// 0x1
 const SVSM_XCR0: u64 = 0x1;
+/// 0x1f80
 const SVSM_MXCSR: u32 = 0x1f80;
+/// 0x2
 const SVSM_RFLAGS: u64 = 0x2;
+/// 0x5555
 const SVSM_X87_FTW: u16 = 0x5555;
+/// 0x40
 const SVSM_X87_FCW: u16 = 0x40;
 
+/// 5
 const SVSM_STACK_PAGES: u64 = 5; /* 4 stack pages and one guard page */
 
 static mut AP_SYNC: u8 = 0;
+/// 1
 const AP_STARTING: u8 = 1;
+/// 2
 const AP_STARTED: u8 = 2;
 
 /// Function executed for each AP when booted
