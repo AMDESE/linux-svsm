@@ -121,6 +121,19 @@ pub const VMPL1_UNSUPPORTED_SEV_FEATS: u64 = SEV_FEAT_VIRTUAL_TOM
     | SEV_FEAT_VMSA_REG_PROTECTION
     | SEV_FEAT_RESERVED;
 
+/// These are the features that must be one for VMPL0
+pub const VMPL0_REQUIRED_SEV_FEATS: u64 = SEV_FEAT_SNP_ACTIVE | SEV_FEAT_RESTRICTED_INJ;
+
+/// These are the features that must be zero for VMPL0
+pub const VMPL0_UNSUPPORTED_SEV_FEATS: u64 = SEV_FEAT_VIRTUAL_TOM
+    | SEV_FEAT_REFLECT_VC
+    | SEV_FEAT_ALTERNATE_INJ
+    | SEV_FEAT_SECURE_TSC
+    | SEV_FEAT_VMGEXIT_PARAM
+    | SEV_FEAT_GUEST_INTERCEPT_CTRL
+    | SEV_FEAT_VMSA_REG_PROTECTION
+    | SEV_FEAT_RESERVED;
+
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
 pub struct VmsaSegmentRegister {
