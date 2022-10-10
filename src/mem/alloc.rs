@@ -428,7 +428,7 @@ impl MemoryRegion {
             return Err(());
         }
 
-        let nr_pages: usize = 1 << order + 1;
+        let nr_pages: usize = (1 << order) + 1;
         let pfn: usize = if pfn1 < pfn2 { pfn1 } else { pfn2 };
 
         // Write new compound head

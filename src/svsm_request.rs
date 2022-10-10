@@ -137,7 +137,7 @@ macro_rules! PVALIDATE_ENTRY_IGNORE_CF {
 
 macro_rules! PVALIDATE_ENTRY_GFN {
     ($x: expr) => {
-        ((*$x).operation & !0xfff)
+        (*$x).operation & !0xfff
     };
 }
 
@@ -476,11 +476,9 @@ unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bo
     }
 
     let ret: u32 = pvalidate(va.as_u64(), page_size, action);
-    if ret != 0 {
-        if ret != PVALIDATE_CF_SET || ignore_cf == 0 {
-            (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
-            return (false, flush);
-        }
+    if ret != 0 && (ret != PVALIDATE_CF_SET || ignore_cf == 0) {
+        (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
+        return (false, flush);
     }
 
     if action != 0 {

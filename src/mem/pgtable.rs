@@ -282,8 +282,7 @@ pub fn pgtable_map_pages_private(pa: PhysAddr, len: u64) -> Result<VirtAddr, Map
     assert!(len != 0);
 
     let mut map: PhysAddr = pa.align_down(PAGE_SIZE);
-    let map_end: PhysAddr =
-        PhysAddr::new(pa.as_u64() + len - 1_u64).align_down(PAGE_SIZE) + 1 as u64;
+    let map_end: PhysAddr = PhysAddr::new(pa.as_u64() + len - 1_u64).align_down(PAGE_SIZE) + 1_u64;
 
     let flags: PageTableFlags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
     let mut allocator: PageTableAllocator = PageTableAllocator::new();
