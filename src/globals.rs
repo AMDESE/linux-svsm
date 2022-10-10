@@ -41,6 +41,12 @@ pub const SVSM_TERM_FW_CFG_ERROR: u64 = 7;
 pub const SVSM_TERM_BIOS_FORMAT: u64 = 8;
 /// 9
 pub const SVSM_TERM_NOT_VMPL0: u64 = 9;
+/// 10
+pub const SVSM_TERM_RESERVED: u64 = 10;
+/// 11
+pub const SVSM_TERM_INCORRECT_VMPL: u64 = 11;
+/// 12
+pub const SVSM_TERM_VMPL1_SEV_FEATURES: u64 = 12;
 
 /// 12
 pub const PAGE_SHIFT: u64 = 12;
