@@ -261,16 +261,16 @@ else
 	GUEST_NAME="diskless"
 fi
 
-if [ "${MEM%M}" == "$MEM" -a "${MEM%G}" == "$MEM" ]; then
-	echo "Memory must be specified with the 'M' or 'G' suffix"
-	exit 1
-fi
-if [ "${MEM%M}" != "$MEM" ]; then
-	MEM_IN_MB="${MEM%M}"
-else
-	MEM_IN_MB="${MEM%G}"
-	MEM_IN_MB=$((MEM_IN_MB * 1024))
-fi
+case "$MEM" in
+	*M)	MEM_IN_MB="${MEM%M}"
+		;;
+	*G)	MEM_IN_MB="${MEM%G}"
+		MEM_IN_MB=$((MEM_IN_MB * 1024))
+		;;
+	 *)	echo "Memory must be specified with the 'M' or 'G' suffix"
+		exit 1
+		;;
+esac
 
 # we add all the qemu command line options into a file
 QEMU_CMDLINE=/tmp/cmdline.$$
@@ -334,38 +334,36 @@ add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_BIOS_VARS}"
 
 # If harddisk file is specified then add the HDD drive
 if [ -n "${HDA_FILE}" ]; then
+	case "${HDA_FILE}" in
+		*qcow2)		HDA_FORMAT="qcow2"
+				;;
+		*)		HDA_FORMAT="raw"
+				;;
+	esac
+
 	if [ -n "$USE_VIRTIO" ]; then
-		if [[ ${HDA_FILE} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=qcow2"
-		else
-			add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=raw"
-		fi
+		add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=${HDA_FORMAT}"
 		add_opts "-device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true"
 		add_opts "-device scsi-hd,drive=disk0"
 	else
-		if [[ ${HDA_FILE} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDA_FILE},format=qcow2"
-		else
-			add_opts "-drive file=${HDA_FILE},format=raw"
-		fi
+		add_opts "-drive file=${HDA_FILE},format=${HDA_FORMAT}"
 	fi
 fi
 
 if [ -n "${HDB_FILE}" ]; then
+	case "${HDB_FILE}" in
+		*qcow2)		HDB_FORMAT="qcow2"
+				;;
+		*)		HDB_FORMAT="raw"
+				;;
+	esac
+
 	if [ -n "$USE_VIRTIO" ]; then
-		if [[ ${HDB_FILE} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDB_FILE},if=none,id=disk1,format=qcow2"
-		else
-			add_opts "-drive file=${HDB_FILE},if=none,id=disk1,format=raw"
-		fi
+		add_opts "-drive file=${HDB_FILE},if=none,id=disk1,format=${HDB_FORMAT}"
 		add_opts "-device virtio-scsi-pci,id=scsi1,disable-legacy=on,iommu_platform=true"
 		add_opts "-device scsi-hd,drive=disk1"
 	else
-		if [[ ${HDB_FILE} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDB_FILE},format=qcow2"
-		else
-			add_opts "-drive file=${HDB_FILE},format=raw"
-		fi
+		add_opts "-drive file=${HDB_FILE},format=${HDB_FORMAT}"
 	fi
 fi
 
