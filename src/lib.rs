@@ -40,6 +40,7 @@ use crate::globals::*;
 use crate::mem::*;
 use crate::svsm_request::svsm_request_loop;
 use crate::util::*;
+use crate::vmsa::*;
 
 use core::panic::PanicInfo;
 
@@ -104,15 +105,39 @@ fn check_svsm_address() {
     }
 }
 
+/// Check SVSM is running with adequate SEV features
+fn check_vmpl0_features() {
+    let features: u64 = rdmsr(MSR_SEV_STATUS) >> 2;
+
+    if features & VMPL0_REQUIRED_SEV_FEATS != VMPL0_REQUIRED_SEV_FEATS {
+        vc_terminate_vmpl0_sev_features();
+    }
+
+    if features & VMPL0_UNSUPPORTED_SEV_FEATS != 0 {
+        vc_terminate_vmpl0_sev_features();
+    }
+}
+
+/// Perform initial checkings to ensure adequate execution.
+/// This means checking SVSM runs on VMPL0, with proper addresses
+/// and sizes, and proper SEV features activate
+fn initial_checks() {
+    // Ensure execution at VMPL0
+    check_vmpl_level();
+
+    // Ensure we are running with proper SEV features
+    check_vmpl0_features();
+
+    // Ensure SVSM addresses and sizes are appropiate
+    check_svsm_address();
+}
+
 /// Main function. Initialize everything and start request loop.
 /// This function never returns.
 #[no_mangle]
 pub extern "C" fn svsm_main() -> ! {
-    // Ensure execution at VMPL0
-    check_vmpl_level();
-
-    // Ensure SVSM addresses and sizes are appropiate
-    check_svsm_address();
+    // Ensure valid SVSM execution environment
+    initial_checks();
 
     // Initialize exception/interrupt handling
     idt_init();

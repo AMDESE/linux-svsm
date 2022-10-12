@@ -238,6 +238,12 @@ pub fn vc_terminate_vmpl1_sev_features() {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_VMPL1_SEV_FEATURES);
 }
 
+/// Terminate SVSM due to incorrect SEV features for VMPL0
+#[inline]
+pub fn vc_terminate_vmpl0_sev_features() {
+    vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_VMPL0_SEV_FEATURES);
+}
+
 /// Terminate SVSM due to incorrect VMPL level on VMSA
 #[inline]
 pub fn vc_terminate_svsm_incorrect_vmpl() {

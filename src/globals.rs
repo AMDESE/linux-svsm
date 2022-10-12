@@ -42,7 +42,7 @@ pub const SVSM_TERM_BIOS_FORMAT: u64 = 8;
 /// 9
 pub const SVSM_TERM_NOT_VMPL0: u64 = 9;
 /// 10
-pub const SVSM_TERM_RESERVED: u64 = 10;
+pub const SVSM_TERM_VMPL0_SEV_FEATURES: u64 = 10;
 /// 11
 pub const SVSM_TERM_INCORRECT_VMPL: u64 = 11;
 /// 12
