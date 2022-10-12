@@ -232,6 +232,18 @@ pub fn vc_terminate_ghcb_feature() {
     vc_terminate(GHCB_REASON_CODE_SET, GHCB_TERM_FEATURE_SUPPORT);
 }
 
+/// Terminate SVSM due to incorrect SEV features for VMPL1
+#[inline]
+pub fn vc_terminate_vmpl1_sev_features() {
+    vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_VMPL1_SEV_FEATURES);
+}
+
+/// Terminate SVSM due to incorrect VMPL level on VMSA
+#[inline]
+pub fn vc_terminate_svsm_incorrect_vmpl() {
+    vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_INCORRECT_VMPL);
+}
+
 fn vc_msr_protocol(request: u64) -> u64 {
     let response: u64;
 

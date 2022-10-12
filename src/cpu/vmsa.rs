@@ -6,13 +6,105 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::funcs;
 use crate::globals::*;
 use crate::STATIC_ASSERT;
+use crate::{funcs, BIT};
 
 use core::intrinsics::size_of;
 use memoffset::offset_of;
 use paste::paste;
+
+// Sev Features for guest
+// Secure Nested Paging is active
+/// Bit 0
+pub const SEV_FEAT_SNP_ACTIVE: u64 = BIT!(0);
+
+// Virtual TOM feature is enabled
+/// Bit 1
+pub const SEV_FEAT_VIRTUAL_TOM: u64 = BIT!(1);
+
+// Reflect #VC is enabled
+/// Bit 2
+pub const SEV_FEAT_REFLECT_VC: u64 = BIT!(2);
+
+// Restricted Injection is enabled
+/// Bit 3
+pub const SEV_FEAT_RESTRICTED_INJ: u64 = BIT!(3);
+
+// Alternate Injection is enabled
+/// Bit 4
+pub const SEV_FEAT_ALTERNATE_INJ: u64 = BIT!(4);
+
+// Extra debug registers are swapped
+/// Bit 5
+pub const SEV_FEAT_DEBUG_SWAP: u64 = BIT!(5);
+
+// Prevent Host IBS is enabled
+/// Bit 6
+pub const SEV_FEAT_PREVENT_HOST_IBS: u64 = BIT!(6);
+
+// BTB predictor isolation is enabled
+/// Bit 7
+pub const SEV_FEAT_SNP_BTB_ISOLATION: u64 = BIT!(7);
+
+// VMPL SSS is enabled
+/// Bit 8
+pub const SEV_FEAT_VMPL_SSS: u64 = BIT!(8);
+
+// Secure TSC feature is enabled
+/// Bit 9
+pub const SEV_FEAT_SECURE_TSC: u64 = BIT!(9);
+
+// Reserved
+/// Bits [13:10]
+pub const SEV_FEAT_RESERVED_1: u64 = 0b1111 << 10;
+
+// VMSA Register Protection is enabled
+/// Bit 14
+pub const SEV_FEAT_VMSA_REG_PROTECTION: u64 = BIT!(14);
+
+// Reserved
+/// Bits [63:15]
+pub const SEV_FEAT_RESERVED_2: u64 = !(BIT!(15) - 1);
+
+//
+// Different VMPL levels may have distinct SEV features,
+// but some of them should be enabled or not, depending on
+// currently supported features and security considerations.
+// This is the info on what should be checked or ignored:
+
+// MB1 - Must be 1
+// MBZ - Must be 0
+// DC  - Don't care
+//
+// BITS                            VMPL0           VMPL1
+//
+//  0 - SNPAactive                 MB1             MB1
+//  1 - VirtualTOM                 MBZ             MBZ
+//  2 - ReflectVC                  MBZ             MBZ
+//  3 - RestrictInjection          MB1             DC
+//  4 - AlternateInjection         MBZ             MBZ
+//  5 - DebugSwapSupport           DC              DC
+//  6 - PreventHostIbs             DC              DC
+//  7 - SNPBTBIsolation            DC              DC
+//  8 - VMPLSSS                    DC              DC
+//  9 - SecureTSC                  MBZ             DC
+// 10 - 13  Reserved_1             MBZ             MBZ
+// 14 - VmsaRegisterProtection     MBZ             MBZ
+//
+// 15 - 63 Reserved_2              MBZ             MBZ
+//
+
+/// These are the features that must be one for VMPL1
+pub const VMPL1_REQUIRED_SEV_FEATS: u64 = SEV_FEAT_SNP_ACTIVE;
+
+/// These are the features that must be zero for VMPL1
+pub const VMPL1_UNSUPPORTED_SEV_FEATS: u64 = SEV_FEAT_VIRTUAL_TOM
+    | SEV_FEAT_REFLECT_VC
+    | SEV_FEAT_ALTERNATE_INJ
+    | SEV_FEAT_RESERVED_1
+    | SEV_FEAT_VMSA_REG_PROTECTION
+    | SEV_FEAT_RESERVED_2;
 
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]

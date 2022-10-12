@@ -7,8 +7,8 @@
  */
 
 use crate::cpu::percpu::PERCPU;
-use crate::cpu::vc::vc_terminate_svsm_general;
-use crate::cpu::vmsa::Vmsa;
+use crate::cpu::vc::*;
+use crate::cpu::vmsa::*;
 use crate::cpu::*;
 use crate::globals::*;
 use crate::mem::*;
@@ -121,9 +121,22 @@ unsafe fn __create_bios_vmsa(vmsa_va: VirtAddr) {
     // Copy the measured BIOS BSP VMSA page
     *vmsa = *bsp_page;
 
-    // Set or override the SEV-SNP VMSA entries
-    (*vmsa).set_vmpl(VMPL::Vmpl1 as u8);
-    (*vmsa).set_sev_features(rdmsr(MSR_SEV_STATUS) >> 2);
+    if (*vmsa).vmpl() != VMPL::Vmpl1 as u8 {
+        vc_terminate_svsm_incorrect_vmpl();
+    }
+
+    // Check the SEV-SNP VMSA SEV features to make sure guest will
+    // execute with supported SEV features. It is better to not fix
+    // the SEV features ourselves, since this could indicate an issue
+    // on the hypervisor side.
+
+    if (*vmsa).sev_features() & VMPL1_REQUIRED_SEV_FEATS != VMPL1_REQUIRED_SEV_FEATS {
+        vc_terminate_vmpl1_sev_features();
+    }
+
+    if (*vmsa).sev_features() & VMPL1_UNSUPPORTED_SEV_FEATS != 0 {
+        vc_terminate_vmpl1_sev_features();
+    }
 }
 
 fn create_bios_vmsa() -> VirtAddr {
