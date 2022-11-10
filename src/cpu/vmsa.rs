@@ -88,7 +88,7 @@ pub const SEV_FEAT_RESERVED_2: u64 = !(BIT!(15) - 1);
 //  6 - PreventHostIbs             DC              DC
 //  7 - SNPBTBIsolation            DC              DC
 //  8 - VMPLSSS                    DC              DC
-//  9 - SecureTSC                  MBZ             DC
+//  9 - SecureTSC                  MBZ             MBZ
 // 10 - 13  Reserved_1             MBZ             MBZ
 // 14 - VmsaRegisterProtection     MBZ             MBZ
 //
@@ -102,6 +102,7 @@ pub const VMPL1_REQUIRED_SEV_FEATS: u64 = SEV_FEAT_SNP_ACTIVE;
 pub const VMPL1_UNSUPPORTED_SEV_FEATS: u64 = SEV_FEAT_VIRTUAL_TOM
     | SEV_FEAT_REFLECT_VC
     | SEV_FEAT_ALTERNATE_INJ
+    | SEV_FEAT_SECURE_TSC
     | SEV_FEAT_RESERVED_1
     | SEV_FEAT_VMSA_REG_PROTECTION
     | SEV_FEAT_RESERVED_2;
