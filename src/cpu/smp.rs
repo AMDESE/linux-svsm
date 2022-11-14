@@ -22,9 +22,9 @@ use x86_64::structures::paging::frame::PhysFrame;
 use x86_64::structures::DescriptorTablePointer;
 
 /// Bit 4
-const SEGMENT_TYPE_PRESENT: u16 = BIT!(4);
+const SEGMENT_TYPE_SUPERVISOR: u16 = BIT!(4);
 /// Bit 7
-const SEGMENT_TYPE_SUPERVISOR: u16 = BIT!(7);
+const SEGMENT_TYPE_PRESENT: u16 = BIT!(7);
 /// Bit 9
 const SEGMENT_TYPE_LONGMODE: u16 = BIT!(9);
 
