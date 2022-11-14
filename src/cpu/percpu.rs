@@ -34,6 +34,8 @@ pub struct PerCpu {
 
     vmsa: [u64; VMPL::VmplMax as usize],
     caa: [u64; VMPL::VmplMax as usize],
+
+    tss: u64,
 }
 
 //
@@ -50,6 +52,8 @@ impl PerCpu {
             ghcb: 0,
             vmsa: [0; VMPL::VmplMax as usize],
             caa: [0; VMPL::VmplMax as usize],
+
+            tss: 0,
         }
     }
 
@@ -314,6 +318,56 @@ impl PerCpu {
             let p: *mut PerCpu =
                 (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *mut PerCpu;
             (*p).caa[vmpl as usize] = caa.as_u64();
+        }
+    }
+
+    /// Return virtual address of TSS of a CPU
+    pub fn tss(&mut self) -> VirtAddr {
+        let tss: u64;
+
+        unsafe {
+            asm!("mov {1}, gs:[{0}]",
+                 in(reg) offset_of!(PerCpu, tss),
+                 out(reg) tss,
+            );
+        }
+
+        VirtAddr::new_truncate(tss)
+    }
+
+    /// Set TSS of current CPU
+    pub fn set_tss(&mut self, tss: VirtAddr) {
+        unsafe {
+            asm!("mov gs:[{0}], {1}",
+                 in(reg) offset_of!(PerCpu, tss),
+                 in(reg) tss.as_u64(),
+            );
+        }
+    }
+
+    /// Obtain TSS for a given CPU
+    pub fn tss_for(&mut self, for_id: usize) -> VirtAddr {
+        let tss: u64;
+
+        unsafe {
+            assert!(for_id < CPU_COUNT);
+
+            let p: *const PerCpu =
+                (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *const PerCpu;
+            tss = (*p).tss
+        }
+
+        VirtAddr::new_truncate(tss)
+    }
+
+    /// Set TSS for a given CPU
+    pub fn set_tss_for(&mut self, tss: VirtAddr, for_id: usize) {
+        unsafe {
+            assert!(for_id < CPU_COUNT);
+
+            let p: *mut PerCpu =
+                (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *mut PerCpu;
+            (*p).tss = tss.as_u64();
         }
     }
 }

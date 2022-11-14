@@ -51,6 +51,7 @@ extern "C" {
     static dyn_mem_begin: u64;
     static dyn_mem_end: u64;
     static early_ghcb: u64;
+    static early_tss: u64;
     static svsm_sbss: u64;
     static svsm_ebss: u64;
     static svsm_sdata: u64;
@@ -152,6 +153,9 @@ pub extern "C" fn svsm_main() -> ! {
 
     // Allocate per-CPU data (pointed to by GS register)
     percpu_init();
+
+    // Set up the TSS
+    tss_init();
 
     ghcb_init();
 

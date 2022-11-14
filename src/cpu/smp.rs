@@ -15,10 +15,12 @@ use crate::mem::*;
 use crate::svsm_request::*;
 use crate::*;
 
+use core::intrinsics::size_of;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::instructions::tables::{sgdt, sidt};
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::frame::PhysFrame;
+use x86_64::structures::tss::TaskStateSegment;
 use x86_64::structures::DescriptorTablePointer;
 
 /// Bit 4
@@ -36,6 +38,11 @@ const SVSM_CS_TYPE: u16 =
 const SVSM_CS_LIMIT: u32 = 0xffffffff;
 /// 0
 const SVSM_CS_BASE: u64 = 0;
+
+/// 0x18
+pub const SVSM_TSS_SELECTOR: u16 = 0x18;
+/// 0x89
+pub const SVSM_TSS_TYPE: u16 = 0x9 | SEGMENT_TYPE_PRESENT;
 
 /// 0x80010033
 const SVSM_CR0: u64 = 0x80010033; /* PG, WP, NE, ET, MP, PE */
@@ -175,12 +182,18 @@ fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
     let gdtr: DescriptorTablePointer = sgdt();
     let idtr: DescriptorTablePointer = sidt();
     let gs: VirtAddr = percpu_address(for_id);
+    let tss: VirtAddr = tss_init_for(for_id);
 
     unsafe {
         (*vmsa).set_cs_selector(SVSM_CS_SELECTOR);
         (*vmsa).set_cs_rtype(SVSM_CS_TYPE);
         (*vmsa).set_cs_limit(SVSM_CS_LIMIT);
         (*vmsa).set_cs_base(SVSM_CS_BASE);
+
+        (*vmsa).set_tr_selector(SVSM_TSS_SELECTOR);
+        (*vmsa).set_tr_rtype(SVSM_TSS_TYPE);
+        (*vmsa).set_tr_limit(size_of::<TaskStateSegment>() as u32 - 1);
+        (*vmsa).set_tr_base(tss.as_u64());
 
         (*vmsa).set_gs_base(gs.as_u64());
 

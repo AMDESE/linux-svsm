@@ -16,6 +16,8 @@ pub mod percpu;
 pub mod smp;
 /// Auxiliary assembly functions
 pub mod sys;
+/// Per-CPU TSS support
+pub mod tss;
 /// VC functions
 pub mod vc;
 /// Vmsa (Virtual Machine Saving Area) support
@@ -25,4 +27,5 @@ pub use crate::cpu::idt::*;
 pub use crate::cpu::percpu::*;
 pub use crate::cpu::smp::*;
 pub use crate::cpu::sys::*;
+pub use crate::cpu::tss::*;
 pub use crate::cpu::vc::*;
