@@ -220,18 +220,20 @@ bsp_stack_end:
  */
 	.balign	8
 GLOBAL(gdt64)
-	.quad	0			/* Reserved */
-	.quad	0x00cf9a000000ffff	/* 32-bit code segment */
-	.quad	0x00cf92000000ffff	/* 32-bit data segment */
-	.quad	0x00af9a000000ffff	/* 64-bit code segment */
-	.quad	0x00cf92000000ffff	/* 64-bit data segment */
-	.quad	0x0080890000000000	/* 64-bit TSS system segment */
-	.quad	0x0000000000000000	/* (TSS is 16 bytes in size) */
+	.quad    0            	   	/* 0x0 Reserved */
+	.quad    0x00af9a000000ffff	/* 0x8 64-bit code segment (CPL0) */
+	.quad    0x00cf92000000ffff	/* 0x10 64-bit data segment (CPL0) */
+tss:
+	.quad    0x0080890000000000	/* 0x18 64-bit TSS */
+	.quad    0x0000000000000000	/* 0x20 TSS (Second half) */
 GLOBAL(gdt64_end)
 
 gdt64_desc:
 	.word	SVSM_GDT_LIMIT
 	.quad	gdt64
+
+GLOBAL(early_tss)
+	.quad	tss
 
 /*
  * 64-bit IDT - 256 16-byte entries

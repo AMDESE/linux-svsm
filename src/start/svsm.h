@@ -78,7 +78,7 @@ _name:
 #define SVSM_GDT_LIMIT			gdt64_end - gdt64 - 1
 #define SVSM_IDT_LIMIT			idt64_end - idt64 - 1
 
-#define SVSM_CS_SELECTOR		0x18
+#define SVSM_CS_SELECTOR		0x8
 #define SVSM_CS_ATTR			0x00af9a000000ffff
 
 #define SVSM_SNP_MEASURED_PAGES_BASE	edata

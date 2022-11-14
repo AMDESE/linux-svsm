@@ -17,8 +17,10 @@ pub mod ghcb;
 /// Page Table and its related operations
 pub mod pgtable;
 
+pub use crate::mem::alloc::mem_allocate;
 pub use crate::mem::alloc::mem_allocate_frame;
 pub use crate::mem::alloc::mem_allocate_frames;
+pub use crate::mem::alloc::mem_free;
 pub use crate::mem::alloc::mem_free_frame;
 pub use crate::mem::alloc::mem_free_frames;
 pub use crate::mem::alloc::mem_init;
