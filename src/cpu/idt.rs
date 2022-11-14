@@ -6,6 +6,7 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
+use crate::DOUBLE_FAULT_IST;
 use crate::cpu::vc_handler;
 
 use alloc::string::String;
@@ -26,7 +27,11 @@ lazy_static! {
         idt.bound_range_exceeded.set_handler_fn(br_handler);
         idt.invalid_opcode.set_handler_fn(ud_handler);
         idt.device_not_available.set_handler_fn(nm_handler);
-        idt.double_fault.set_handler_fn(df_handler);
+        unsafe {
+            idt.double_fault
+                .set_handler_fn(df_handler)
+                .set_stack_index(DOUBLE_FAULT_IST as u16);
+        }
         idt.invalid_tss.set_handler_fn(ts_handler);
         idt.segment_not_present.set_handler_fn(np_handler);
         idt.stack_segment_fault.set_handler_fn(ss_handler);
