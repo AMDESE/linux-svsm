@@ -593,20 +593,29 @@ impl MemoryRegion {
 
 static ROOT_MEM: SpinLock<MemoryRegion> = SpinLock::new(MemoryRegion::new());
 
-pub fn allocate_page() -> Result<VirtAddr, ()> {
+fn allocate_page() -> Result<VirtAddr, ()> {
     ROOT_MEM.lock().allocate_page()
 }
 
-pub fn allocate_pages(order: usize) -> Result<VirtAddr, ()> {
+fn allocate_pages(order: usize) -> Result<VirtAddr, ()> {
     ROOT_MEM.lock().allocate_pages(order)
 }
 
-pub fn allocate_slab_page(slab: VirtAddr) -> Result<VirtAddr, ()> {
+fn allocate_slab_page(slab: VirtAddr) -> Result<VirtAddr, ()> {
     ROOT_MEM.lock().allocate_slab_page(slab)
 }
 
-pub fn free_page(vaddr: VirtAddr) {
+fn free_page(vaddr: VirtAddr) {
     ROOT_MEM.lock().free_page(vaddr)
+}
+
+pub fn mem_free(va: VirtAddr) {
+    unsafe { ALLOCATOR.slab_dealloc(va) }
+}
+
+/// Persistent dynamic allocation of variable size
+pub fn mem_allocate(size: usize) -> Result<VirtAddr, ()> {
+    unsafe { ALLOCATOR.slab_alloc(size) }
 }
 
 pub fn mem_free_frames(frame: PhysFrame, _count: u64) {
@@ -990,12 +999,9 @@ impl SvsmAllocator {
 
         order
     }
-}
 
-unsafe impl GlobalAlloc for SvsmAllocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+    fn slab_alloc(&self, size: usize) -> Result<VirtAddr, ()> {
         let ret: Result<VirtAddr, ()>;
-        let size: usize = layout.size();
 
         SLAB_PAGE_SLAB
             .lock()
@@ -1020,43 +1026,62 @@ unsafe impl GlobalAlloc for SvsmAllocator {
             ret = allocate_page();
         } else {
             let order: usize = SvsmAllocator::get_order(size);
-            if order >= MAX_ORDER {
-                return ptr::null_mut();
+            if order < MAX_ORDER {
+                ret = allocate_pages(order);
+            } else {
+                ret = Err(());
             }
-            ret = allocate_pages(order);
         }
 
-        if let Err(_e) = ret {
-            return ptr::null_mut();
-        }
-
-        ret.unwrap().as_u64() as *mut u8
+        ret
     }
 
-    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-        let virt_addr: VirtAddr = VirtAddr::new(ptr as u64);
+    fn slab_dealloc(&self, va: VirtAddr) {
+        let info: SvsmPageInfo;
 
-        let result: Result<SvsmPageInfo, ()> = ROOT_MEM.lock().get_page_info(virt_addr);
-
-        if let Err(_e) = result {
-            panic!("Freeing unknown memory");
+        let result: Result<SvsmPageInfo, ()> = ROOT_MEM.lock().get_page_info(va);
+        match result {
+            Ok(r) => info = r,
+            Err(_) => panic!("Freeing unknown memory"),
         }
-
-        let info: SvsmPageInfo = result.unwrap();
 
         match info {
             SvsmPageInfo::Allocated(_ai) => {
-                free_page(virt_addr);
+                free_page(va);
             }
             SvsmPageInfo::SlabPage(si) => {
                 let slab: *mut Slab = si.slab.as_u64() as *mut Slab;
 
-                (*slab).deallocate(virt_addr);
+                unsafe {
+                    (*slab).deallocate(va);
+                }
             }
             _ => {
                 panic!("Freeing memory on unsupported page type");
             }
         }
+    }
+}
+
+unsafe impl GlobalAlloc for SvsmAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let result: Result<VirtAddr, ()>;
+        let size: usize = layout.size();
+        let ret: *mut u8;
+
+        result = self.slab_alloc(size);
+        match result {
+            Ok(r) => ret = r.as_u64() as *mut u8,
+            Err(_) => ret = ptr::null_mut(),
+        }
+
+        ret
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        let virt_addr: VirtAddr = VirtAddr::new(ptr as u64);
+
+        self.slab_dealloc(virt_addr);
     }
 }
 
