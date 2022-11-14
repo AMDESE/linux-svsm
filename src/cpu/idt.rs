@@ -8,6 +8,7 @@
 
 use crate::cpu::vc_handler;
 
+use alloc::string::String;
 use lazy_static::lazy_static;
 use x86_64::structures::idt::InterruptDescriptorTable;
 use x86_64::structures::idt::InterruptStackFrame;
@@ -44,11 +45,14 @@ lazy_static! {
 
 fn do_panic(stack_frame: InterruptStackFrame, name: &str, error_code: u64) -> ! {
     let rip: u64 = stack_frame.instruction_pointer.as_u64();
-
-    panic!(
-        "{} Exception: (errorcode={:#x}\n{:#?}\nRIP={rip}\n",
-        name, error_code, stack_frame
+    let msg: String = alloc::format!(
+        "#{} at RIP {:#0x} with error code {:#0x}",
+        name,
+        rip,
+        error_code
     );
+
+    panic!("{}", msg);
 }
 
 extern "x86-interrupt" fn de_handler(stack_frame: InterruptStackFrame) {
