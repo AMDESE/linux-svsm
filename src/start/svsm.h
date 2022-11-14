@@ -78,8 +78,14 @@ _name:
 #define SVSM_GDT_LIMIT			gdt64_end - gdt64 - 1
 #define SVSM_IDT_LIMIT			idt64_end - idt64 - 1
 
-#define SVSM_CS_SELECTOR		0x8
-#define SVSM_CS_ATTR			0x00af9a000000ffff
+#define SVSM_KERNEL_CS_SELECTOR		(kernel_cs - gdt64)
+#define SVSM_KERNEL_CS_ATTR		0x00af9a000000ffff
+#define SVSM_KERNEL_DS_SELECTOR		(kernel_ds - gdt64)
+#define SVSM_KERNEL_DS_ATTR		0x00cf92000000ffff
+
+#define SVSM_TSS_SELECTOR		(tss - gdt64)
+#define SVSM_TSS_ATTR0			0x0080890000000000
+#define SVSM_TSS_ATTR1			0x0000000000000000
 
 #define SVSM_SNP_MEASURED_PAGES_BASE	edata
 

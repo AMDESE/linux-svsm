@@ -65,6 +65,8 @@ extern "C" {
     static svsm_cpuid_page: u64;
     static svsm_cpuid_page_size: u64;
     static bios_vmsa_page: u64;
+    static gdt64_kernel_cs: u64;
+    static gdt64_tss: u64;
 }
 
 #[panic_handler]

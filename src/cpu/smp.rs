@@ -30,8 +30,7 @@ const SEGMENT_TYPE_PRESENT: u16 = BIT!(7);
 /// Bit 9
 const SEGMENT_TYPE_LONGMODE: u16 = BIT!(9);
 
-/// 0x8
-const SVSM_CS_SELECTOR: u16 = 0x8;
+/// 0x029a
 const SVSM_CS_TYPE: u16 =
     0x0a | SEGMENT_TYPE_PRESENT | SEGMENT_TYPE_SUPERVISOR | SEGMENT_TYPE_LONGMODE;
 /// 0xffffffff
@@ -39,9 +38,7 @@ const SVSM_CS_LIMIT: u32 = 0xffffffff;
 /// 0
 const SVSM_CS_BASE: u64 = 0;
 
-/// 0x18
-pub const SVSM_TSS_SELECTOR: u16 = 0x18;
-/// 0x89
+/// 0x0089
 pub const SVSM_TSS_TYPE: u16 = 0x9 | SEGMENT_TYPE_PRESENT;
 
 /// 0x80010033
@@ -185,12 +182,12 @@ fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
     let tss: VirtAddr = tss_init_for(for_id);
 
     unsafe {
-        (*vmsa).set_cs_selector(SVSM_CS_SELECTOR);
+        (*vmsa).set_cs_selector(gdt64_kernel_cs as u16);
         (*vmsa).set_cs_rtype(SVSM_CS_TYPE);
         (*vmsa).set_cs_limit(SVSM_CS_LIMIT);
         (*vmsa).set_cs_base(SVSM_CS_BASE);
 
-        (*vmsa).set_tr_selector(SVSM_TSS_SELECTOR);
+        (*vmsa).set_tr_selector(gdt64_tss as u16);
         (*vmsa).set_tr_rtype(SVSM_TSS_TYPE);
         (*vmsa).set_tr_limit(size_of::<TaskStateSegment>() as u32 - 1);
         (*vmsa).set_tr_base(tss.as_u64());

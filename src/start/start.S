@@ -220,17 +220,25 @@ bsp_stack_end:
  */
 	.balign	8
 GLOBAL(gdt64)
-	.quad    0            	   	/* 0x0 Reserved */
-	.quad    0x00af9a000000ffff	/* 0x8 64-bit code segment (CPL0) */
-	.quad    0x00cf92000000ffff	/* 0x10 64-bit data segment (CPL0) */
+	.quad	0			/* Reserved */
+kernel_cs:
+	.quad	SVSM_KERNEL_CS_ATTR	/* 64-bit code segment (CPL0) */
+kernel_ds:
+	.quad	SVSM_KERNEL_DS_ATTR	/* 64-bit data segment (CPL0) */
+
 tss:
-	.quad    0x0080890000000000	/* 0x18 64-bit TSS */
-	.quad    0x0000000000000000	/* 0x20 TSS (Second half) */
+	.quad	SVSM_TSS_ATTR0		/* 64-bit TSS */
+	.quad	SVSM_TSS_ATTR1		/* TSS (Second half) */
 GLOBAL(gdt64_end)
 
-gdt64_desc:
-	.word	SVSM_GDT_LIMIT
-	.quad	gdt64
+GLOBAL(gdt64_kernel_cs)
+	.quad	SVSM_KERNEL_CS_SELECTOR
+
+GLOBAL(gdt64_kernel_ds)
+	.quad	SVSM_KERNEL_DS_SELECTOR
+
+GLOBAL(gdt64_tss)
+	.quad	SVSM_TSS_SELECTOR
 
 GLOBAL(early_tss)
 	.quad	tss
@@ -242,10 +250,6 @@ GLOBAL(early_tss)
 GLOBAL(idt64)
 	.fill	2 * 256, 8, 0
 GLOBAL(idt64_end)
-
-idt64_desc:
-	.word	SVSM_IDT_LIMIT
-	.quad	idt64
 
 /*
  * BSP/AP support:
@@ -386,14 +390,14 @@ svsm_snp_metadata:
 
 svsm_snp_sections:
 	/* SEV SNP Secrets Page */
-	.quad   SVSM_SNP_SECRETS_PAGE_BASE
-	.long   SVSM_SNP_SECRETS_PAGE_SIZE
-	.long   2
+	.quad	SVSM_SNP_SECRETS_PAGE_BASE
+	.long	SVSM_SNP_SECRETS_PAGE_SIZE
+	.long	2
 
 	/* SEV SNP CPUID Page */
-	.quad   SVSM_SNP_CPUID_PAGE_BASE
-	.long   SVSM_SNP_CPUID_PAGE_SIZE
-	.long   3
+	.quad	SVSM_SNP_CPUID_PAGE_BASE
+	.long	SVSM_SNP_CPUID_PAGE_SIZE
+	.long	3
 
 	/* BIOS BSP VMSA Page */
 	.quad	SVSM_SNP_BIOS_BSP_PAGE_BASE
@@ -423,8 +427,8 @@ svsm_guid_info:
 	.word	SVSM_GDT_LIMIT						/* SVSM GDT limit */
 	.quad	idt64							/* SVSM IDT */
 	.word	SVSM_IDT_LIMIT						/* SVSM IDT limit */
-	.word	SVSM_CS_SELECTOR					/* SVSM 64-bit CS slot */
-	.quad	SVSM_CS_ATTR						/* SVSM 64-bit CS attributes */
+	.word	SVSM_KERNEL_CS_SELECTOR					/* SVSM 64-bit CS slot */
+	.quad	SVSM_KERNEL_CS_ATTR					/* SVSM 64-bit CS attributes */
 	.quad	code_64							/* BSP start RIP */
 	.quad	SVSM_EFER						/* SVSM EFER value */
 	.quad	SVSM_CR0						/* SVSM CR0 value */

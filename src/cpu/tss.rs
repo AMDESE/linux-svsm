@@ -73,7 +73,7 @@ unsafe fn __tss_init() {
 
     PERCPU.set_tss(tss);
 
-    load_tss(SegmentSelector(SVSM_TSS_SELECTOR));
+    load_tss(SegmentSelector(gdt64_tss as u16));
 }
 
 ///
