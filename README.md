@@ -105,7 +105,8 @@ form of the error, running manually with -v. In our case:
 
 ```
 $ cd ovmf
-$ nice build -v -q --cmd-len=64436 -DDEBUG_ON_SERIAL_PORT=TRUE -n 32 -t GCC5 -a X64 -p OvmfPkg/OvmfPkgX64.dsc
+$ source edksetup.sh
+$ nice build -v -q --cmd-len=64436 -DDEBUG_ON_SERIAL_PORT -n 32 -t GCC5 -a X64 -p OvmfPkg/OvmfPkgX64.dsc
 ```
 
 If your error involves still not finding Python, you can try the following
