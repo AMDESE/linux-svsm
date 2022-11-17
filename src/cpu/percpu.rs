@@ -403,36 +403,18 @@ pub fn percpu_count() -> usize {
     unsafe { CPU_COUNT as usize }
 }
 
-/// Allocate a per-CPU data page, pointed to by GS regs. Also obtain Apic
-/// Ids (needed for SMP).
-pub fn percpu_init() {
-    // Start with a enough pages for one piece of per-CPU data
-    let init_count: u64 = PAGE_COUNT!(PERCPU_SIZE);
-    let init_frame: PhysFrame = match mem_allocate_frames(init_count) {
-        Some(f) => f,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
-    };
-
-    wrmsr(
-        MSR_GS_BASE,
-        pgtable_pa_to_va(init_frame.start_address()).as_u64(),
-    );
-
+unsafe fn __percpu_init(init_frame: PhysFrame, init_count: u64) -> u64 {
     // Place BSP early GHCB into per-CPU data for use in VC
     let va: VirtAddr;
-    unsafe {
-        va = pgtable_pa_to_va(PhysAddr::new(early_ghcb));
+    va = pgtable_pa_to_va(PhysAddr::new(early_ghcb));
 
-        PERCPU.set_ghcb(va);
-    }
+    PERCPU.set_ghcb(va);
 
     // Retrieve the list of APIC IDs
     let bsp_apic_id: u32 = get_apic_id();
 
     let apic_ids: Vec<u32> = vc_get_apic_ids(bsp_apic_id);
-    unsafe {
-        CPU_COUNT = apic_ids.len();
-    }
+    CPU_COUNT = apic_ids.len();
 
     let count: u64 = PAGE_COUNT!(apic_ids.len() as u64 * PERCPU_SIZE);
 
@@ -446,24 +428,45 @@ pub fn percpu_init() {
         frame = init_frame;
     }
 
-    unsafe {
-        PERCPU_VA = pgtable_pa_to_va(frame.start_address());
-        wrmsr(MSR_GS_BASE, PERCPU_VA.as_u64());
+    PERCPU_VA = pgtable_pa_to_va(frame.start_address());
+    wrmsr(MSR_GS_BASE, PERCPU_VA.as_u64());
 
-        PERCPU.set_cpu_id(0);
-        PERCPU.set_apic_id(bsp_apic_id);
-        PERCPU.set_ghcb(va);
+    PERCPU.set_cpu_id(0);
+    PERCPU.set_apic_id(bsp_apic_id);
+    PERCPU.set_ghcb(va);
 
-        let mut cpu: u32 = 1;
-        for i in 0..CPU_COUNT {
-            if apic_ids[i] == bsp_apic_id {
-                continue;
-            }
-
-            PERCPU.set_cpu_id_for(cpu, i);
-            PERCPU.set_apic_id_for(apic_ids[i], i);
-            cpu += 1;
+    let mut cpu: u32 = 1;
+    for i in 0..CPU_COUNT {
+        if apic_ids[i] == bsp_apic_id {
+            continue;
         }
+
+        PERCPU.set_cpu_id_for(cpu, i);
+        PERCPU.set_apic_id_for(apic_ids[i], i);
+        cpu += 1;
+    }
+
+    count
+}
+
+/// Allocate a per-CPU data page, pointed to by GS regs. Also obtain Apic
+/// Ids (needed for SMP).
+pub fn percpu_init() {
+    // Start with a enough pages for one piece of per-CPU data
+    let init_count: u64 = PAGE_COUNT!(PERCPU_SIZE);
+    let init_frame: PhysFrame = match mem_allocate_frames(init_count) {
+        Some(f) => f,
+        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+    };
+    let count: u64;
+
+    wrmsr(
+        MSR_GS_BASE,
+        pgtable_pa_to_va(init_frame.start_address()).as_u64(),
+    );
+
+    unsafe {
+        count = __percpu_init(init_frame, init_count);
     }
 
     if count != init_count {

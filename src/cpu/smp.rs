@@ -346,7 +346,7 @@ unsafe fn __smp_init() {
     cpu_mode = 1;
 
     let count: usize = percpu_count();
-    let aux = count - 1;
+    let aux: usize = count - 1;
 
     prints!("> Starting SMP for {aux} APs:\n");
 

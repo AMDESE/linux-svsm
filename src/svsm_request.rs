@@ -156,7 +156,7 @@ impl PvalidateRequest {
 }
 
 fn del_vmsa(gpa: PhysAddr) -> bool {
-    let mut vmsa_list = VMSA_LIST.lock();
+    let mut vmsa_list: LockGuard<Vec<VmsaInfo>> = VMSA_LIST.lock();
 
     for i in 0..vmsa_list.len() {
         if vmsa_list[i].gpa == gpa.as_u64() {
@@ -170,7 +170,7 @@ fn del_vmsa(gpa: PhysAddr) -> bool {
 
 #[inline]
 fn add_vmsa(gpa: PhysAddr, apic_id: u32) -> bool {
-    let mut vmsa_list = VMSA_LIST.lock();
+    let mut vmsa_list: LockGuard<Vec<VmsaInfo>> = VMSA_LIST.lock();
     vmsa_list.push(VmsaInfo {
         gpa: gpa.as_u64(),
         apic_id: apic_id,
@@ -179,7 +179,7 @@ fn add_vmsa(gpa: PhysAddr, apic_id: u32) -> bool {
 }
 
 fn vmsa_to_apic_id(gpa: PhysAddr) -> Option<u32> {
-    let vmsa_list = VMSA_LIST.lock();
+    let vmsa_list: LockGuard<Vec<VmsaInfo>> = VMSA_LIST.lock();
 
     for i in 0..vmsa_list.len() {
         if vmsa_list[i].gpa() == gpa.as_u64() {
