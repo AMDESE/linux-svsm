@@ -332,38 +332,51 @@ add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_BIOS_VARS}"
 # add CDROM if specified
 [ -n "${CDROM_FILE}" ] && add_opts "-drive file=${CDROM_FILE},media=cdrom,index=0"
 
+get_image_format() {
+	IMAGE_FILE=$1
+	if [ ! -f "${IMAGE_FILE}" ]; then
+		echo "Missing argument or incorrect parameter \"${IMAGE_FILE}\"";
+		exit 1;
+	fi
+
+	if [ -x "$(command -v qemu-img)" ]; then
+		# Use qemu-img from qemu-utils package to determine the image format
+		IMAGE_FORMAT=$(qemu-img	info ${IMAGE_FILE} | grep "file format" | awk '{ print $NF }')
+	else
+		# qemu-img not found. fallback to naive format detection by file extension.
+		case "${IMAGE_FILE}" in
+			*qcow2)		IMAGE_FORMAT="qcow2"
+					;;
+			*)		IMAGE_FORMAT="raw"
+					;;
+		esac
+	fi
+}
+
 # If harddisk file is specified then add the HDD drive
 if [ -n "${HDA_FILE}" ]; then
-	case "${HDA_FILE}" in
-		*qcow2)		HDA_FORMAT="qcow2"
-				;;
-		*)		HDA_FORMAT="raw"
-				;;
-	esac
+
+	get_image_format ${HDA_FILE}
 
 	if [ -n "$USE_VIRTIO" ]; then
-		add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=${HDA_FORMAT}"
+		add_opts "-drive file=${HDA_FILE},if=none,id=disk0,format=${IMAGE_FORMAT}"
 		add_opts "-device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true"
 		add_opts "-device scsi-hd,drive=disk0"
 	else
-		add_opts "-drive file=${HDA_FILE},format=${HDA_FORMAT}"
+		add_opts "-drive file=${HDA_FILE},format=${IMAGE_FORMAT}"
 	fi
 fi
 
 if [ -n "${HDB_FILE}" ]; then
-	case "${HDB_FILE}" in
-		*qcow2)		HDB_FORMAT="qcow2"
-				;;
-		*)		HDB_FORMAT="raw"
-				;;
-	esac
+
+	get_image_format ${HDB_FILE}
 
 	if [ -n "$USE_VIRTIO" ]; then
-		add_opts "-drive file=${HDB_FILE},if=none,id=disk1,format=${HDB_FORMAT}"
+		add_opts "-drive file=${HDB_FILE},if=none,id=disk1,format=${IMAGE_FORMAT}"
 		add_opts "-device virtio-scsi-pci,id=scsi1,disable-legacy=on,iommu_platform=true"
 		add_opts "-device scsi-hd,drive=disk1"
 	else
-		add_opts "-drive file=${HDB_FILE},format=${HDB_FORMAT}"
+		add_opts "-drive file=${HDB_FILE},format=${IMAGE_FORMAT}"
 	fi
 fi
 
