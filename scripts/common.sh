@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
 #!/bin/bash
+# SPDX-License-Identifier: MIT
 
 run_cmd()
 {
