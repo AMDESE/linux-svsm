@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
 #!/bin/bash
+# SPDX-License-Identifier: MIT
 
 SCRIPT_DIR="$(dirname $0)"
 . ${SCRIPT_DIR}/common.sh
