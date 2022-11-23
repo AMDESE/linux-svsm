@@ -168,85 +168,85 @@ pub fn vc_terminate(reason_set: u64, reason_code: u64) -> ! {
 
 /// Terminate SVSM with generic SVSM reason
 #[inline]
-pub fn vc_terminate_svsm_general() {
+pub fn vc_terminate_svsm_general() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_GENERAL);
 }
 
 /// Terminate SVSM due to lack of memory
 #[inline]
-pub fn vc_terminate_svsm_enomem() {
+pub fn vc_terminate_svsm_enomem() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM);
 }
 
 /// Terminate SVSM due to firmware configuration error
 #[inline]
-pub fn vc_terminate_svsm_fwcfg() {
+pub fn vc_terminate_svsm_fwcfg() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_FW_CFG_ERROR);
 }
 
 /// Terminate SVSM due to invalid GHCB response
 #[inline]
-pub fn vc_terminate_svsm_resp_invalid() {
+pub fn vc_terminate_svsm_resp_invalid() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_GHCB_RESP_INVALID);
 }
 
 /// Terminate SVSM due to a page-related error
 #[inline]
-pub fn vc_terminate_svsm_page_err() {
+pub fn vc_terminate_svsm_page_err() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_SET_PAGE_ERROR);
 }
 
 /// Terminate SVSM due to a PSC-related error
 #[inline]
-pub fn vc_terminate_svsm_psc() {
+pub fn vc_terminate_svsm_psc() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_PSC_ERROR);
 }
 
 /// Terminate SVSM due to a BIOS-format related error
 #[inline]
-pub fn vc_terminate_svsm_bios() {
+pub fn vc_terminate_svsm_bios() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_BIOS_FORMAT);
 }
 
 /// Terminate SVSM due to an unhandled #VC exception
 #[inline]
-pub fn vc_terminate_unhandled_vc() {
+pub fn vc_terminate_unhandled_vc() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_UNHANDLED_VC);
 }
 
 /// Terminate SVSM with generic GHCB reason
 #[inline]
-pub fn vc_terminate_ghcb_general() {
+pub fn vc_terminate_ghcb_general() -> ! {
     vc_terminate(GHCB_REASON_CODE_SET, GHCB_TERM_GENERAL);
 }
 
 /// Terminate SVSM due to unsupported GHCB protocol
 #[inline]
-pub fn vc_terminate_ghcb_unsupported_protocol() {
+pub fn vc_terminate_ghcb_unsupported_protocol() -> ! {
     vc_terminate(GHCB_REASON_CODE_SET, GHCB_TERM_UNSUPPORTED_PROTOCOL);
 }
 
 /// Terminate SVSM due to error related with feature support
 #[inline]
-pub fn vc_terminate_ghcb_feature() {
+pub fn vc_terminate_ghcb_feature() -> ! {
     vc_terminate(GHCB_REASON_CODE_SET, GHCB_TERM_FEATURE_SUPPORT);
 }
 
 /// Terminate SVSM due to incorrect SEV features for VMPL1
 #[inline]
-pub fn vc_terminate_vmpl1_sev_features() {
+pub fn vc_terminate_vmpl1_sev_features() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_VMPL1_SEV_FEATURES);
 }
 
 /// Terminate SVSM due to incorrect SEV features for VMPL0
 #[inline]
-pub fn vc_terminate_vmpl0_sev_features() {
+pub fn vc_terminate_vmpl0_sev_features() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_VMPL0_SEV_FEATURES);
 }
 
 /// Terminate SVSM due to incorrect VMPL level on VMSA
 #[inline]
-pub fn vc_terminate_svsm_incorrect_vmpl() {
+pub fn vc_terminate_svsm_incorrect_vmpl() -> ! {
     vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_INCORRECT_VMPL);
 }
 
