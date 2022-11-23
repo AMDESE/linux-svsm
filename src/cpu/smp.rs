@@ -93,7 +93,7 @@ fn alloc_vmsa() -> PhysFrame {
     // Allocate one frame
     let mut frame: PhysFrame = match mem_allocate_frames(1) {
         Some(f) => f,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        None => vc_terminate_svsm_enomem(),
     };
 
     // VMSA pages must not be 2MB aligned, check for that
@@ -104,7 +104,7 @@ fn alloc_vmsa() -> PhysFrame {
         // Allocate two frames and ...
         frame = match mem_allocate_frames(2) {
             Some(f) => f,
-            None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+            None => vc_terminate_svsm_enomem(),
         };
 
         // ... chose a frame which is not 2MB aligned
@@ -156,7 +156,7 @@ fn create_bios_vmsa() -> VirtAddr {
 fn create_svsm_stack() -> VirtAddr {
     let frame: PhysFrame = match mem_allocate_frames(SVSM_STACK_PAGES) {
         Some(f) => f,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        None => vc_terminate_svsm_enomem(),
     };
 
     let guard_va: VirtAddr = pgtable_pa_to_va(frame.start_address());

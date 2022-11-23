@@ -397,7 +397,7 @@ pub fn vc_get_apic_ids(bsp_apic_id: u32) -> Vec<u32> {
 
     let frame: PhysFrame = match mem_allocate_frames(pages) {
         Some(f) => f,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        None => vc_terminate_svsm_enomem(),
     };
     let pa: PhysAddr = frame.start_address();
     let va: VirtAddr = pgtable_pa_to_va(pa);
@@ -955,7 +955,7 @@ fn perform_page_state_change(ghcb: *mut Ghcb, begin: PhysFrame, end: PhysFrame, 
             while op.header.cur_entry <= last_entry {
                 vc_perform_vmgexit(ghcb, GHCB_NAE_PSC, 0, 0);
                 if !(*ghcb).is_sw_exit_info_2_valid() || (*ghcb).sw_exit_info_2() != 0 {
-                    vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_PSC_ERROR);
+                    vc_terminate_svsm_psc();
                 }
 
                 (*ghcb).shared_buffer(get_bytes, size);

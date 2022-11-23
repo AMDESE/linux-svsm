@@ -115,7 +115,7 @@ lazy_static! {
     static ref FW_CFG_DMA: SpinLock<&'static mut FwCfgDma> = {
         let frame: PhysFrame = match mem_allocate_frame() {
             Some(f) => f,
-            None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+            None => vc_terminate_svsm_enomem(),
         };
         let va: VirtAddr = pgtable_pa_to_va(frame.start_address());
 
@@ -219,11 +219,11 @@ fn find_file_selector(fname: &str) -> Option<u16> {
     for f in files.iter() {
         let nul: usize = match memchr(0, &f.name) {
             Some(n) => n,
-            None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_FW_CFG_ERROR),
+            None => vc_terminate_svsm_fwcfg(),
         };
         let n: &str = match core::str::from_utf8(&f.name[0..nul]) {
             Ok(n) => n,
-            Err(_e) => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_FW_CFG_ERROR),
+            Err(_e) => vc_terminate_svsm_fwcfg(),
         };
 
         if n.eq(fname) {
