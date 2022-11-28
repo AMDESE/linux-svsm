@@ -335,7 +335,7 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
 
     if PERCPU.vmsa_for(VMPL::Vmpl1, cpu_id) == va {
         PERCPU.set_vmsa_for(VirtAddr::zero(), VMPL::Vmpl1, cpu_id);
-        PERCPU.set_caa_for(VirtAddr::zero(), VMPL::Vmpl1, cpu_id);
+        PERCPU.set_caa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
     }
     if !del_vmsa(gpa) {
         return;
@@ -348,10 +348,10 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rax(SVSM_ERR_INVALID_PARAMETER);
 
     let create_vmsa_gpa: PhysAddr = PhysAddr::new((*vmsa).rcx());
-    let ca_gpa: PhysAddr = PhysAddr::new((*vmsa).rdx());
+    let create_ca_gpa: PhysAddr = PhysAddr::new((*vmsa).rdx());
     let apic_id: u32 = LOWER_32BITS!((*vmsa).r8()) as u32;
 
-    if !create_vmsa_gpa.is_aligned(PAGE_SIZE) || !ca_gpa.is_aligned(PAGE_SIZE) {
+    if !create_vmsa_gpa.is_aligned(PAGE_SIZE) || !create_ca_gpa.is_aligned(PAGE_SIZE) {
         return;
     }
 
@@ -360,11 +360,6 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         Err(_e) => return,
     };
     let create_vmsa: *mut Vmsa = create_vmsa_va.as_mut_ptr();
-
-    let ca_va: VirtAddr = match pgtable_map_pages_private(ca_gpa, PAGE_SIZE) {
-        Ok(v) => v,
-        Err(_e) => return,
-    };
 
     let vmpl: VMPL = VMPL::Vmpl1;
     'main: loop {
@@ -415,7 +410,7 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         };
 
         PERCPU.set_vmsa_for(create_vmsa_va, vmpl, cpu_id);
-        PERCPU.set_caa_for(ca_va, vmpl, cpu_id);
+        PERCPU.set_caa_for(create_ca_gpa, vmpl, cpu_id);
 
         // Since the VA of the VMSA page is not known to the SVSM, a global ASID
         // flush must be done.
@@ -502,7 +497,7 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
         return;
     }
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, 8) {
+    let va: VirtAddr = match pgtable_map_pages_private(gpa, CAA_MAP_SIZE) {
         Ok(v) => v,
         Err(_e) => return,
     };
@@ -569,12 +564,7 @@ unsafe fn handle_remap_ca_request(vmsa: *mut Vmsa) {
         _ => return,
     };
 
-    let ca: VirtAddr = match pgtable_map_pages_private(caa, 8) {
-        Ok(v) => v,
-        Err(_e) => return,
-    };
-
-    PERCPU.set_caa(ca, vmpl);
+    PERCPU.set_caa(caa, vmpl);
 
     (*vmsa).set_rax(SVSM_SUCCESS);
 }
@@ -612,18 +602,25 @@ pub fn svsm_request_loop() {
         unsafe {
             loop {
                 // Retrieve Calling Area Address
-                let va: VirtAddr = PERCPU.caa(VMPL::Vmpl1);
-                if va == VirtAddr::zero() {
+                let ca_gpa: PhysAddr = PERCPU.caa(VMPL::Vmpl1);
+                if ca_gpa == PhysAddr::zero() {
                     break;
                 }
 
-                let ca: *mut Ca = va.as_mut_ptr();
+                let ca_va: VirtAddr = match pgtable_map_pages_private(ca_gpa, CAA_MAP_SIZE) {
+                    Ok(r) => r,
+                    Err(_) => break,
+                };
+
+                let ca: *mut Ca = ca_va.as_mut_ptr();
                 if (*ca).call_pending() != 1 {
+                    pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
                     break;
                 }
 
                 let va: VirtAddr = PERCPU.vmsa(VMPL::Vmpl1);
                 if va == VirtAddr::zero() {
+                    pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
                     break;
                 }
 
@@ -649,6 +646,8 @@ pub fn svsm_request_loop() {
 
                     _ => (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_CALLID),
                 }
+
+                pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
             }
         }
 

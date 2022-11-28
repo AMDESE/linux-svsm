@@ -110,3 +110,6 @@ pub enum VMPL {
 
     VmplMax,
 }
+
+/// 8
+pub const CAA_MAP_SIZE: u64 = 8;

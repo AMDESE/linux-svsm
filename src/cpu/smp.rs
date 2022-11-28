@@ -272,14 +272,14 @@ pub fn smp_run_bios_vmpl() -> bool {
 /// Create a Vmsa and Caa and prepare them
 pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     let vmsa: VirtAddr = create_bios_vmsa();
-    let caa: VirtAddr = match pgtable_map_pages_private(caa_pa, 8) {
+    let caa: VirtAddr = match pgtable_map_pages_private(caa_pa, CAA_MAP_SIZE) {
         Ok(c) => c,
         Err(_e) => return false,
     };
 
     unsafe {
         PERCPU.set_vmsa(vmsa, VMPL::Vmpl1);
-        PERCPU.set_caa(caa, VMPL::Vmpl1);
+        PERCPU.set_caa(caa_pa, VMPL::Vmpl1);
     }
 
     // Update the permissions for the CAA and VMSA page.
@@ -324,6 +324,8 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     unsafe {
         svsm_request_add_init_vmsa(vmsa, PERCPU.apic_id());
     }
+
+    pgtable_unmap_pages(caa, CAA_MAP_SIZE);
 
     true
 }

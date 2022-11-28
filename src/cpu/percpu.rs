@@ -266,7 +266,7 @@ impl PerCpu {
     }
 
     /// Retrieve Caa of current CPU
-    pub fn caa(&mut self, vmpl: VMPL) -> VirtAddr {
+    pub fn caa(&mut self, vmpl: VMPL) -> PhysAddr {
         let caa: u64;
 
         unsafe {
@@ -279,11 +279,11 @@ impl PerCpu {
             );
         }
 
-        VirtAddr::new(caa)
+        PhysAddr::new(caa)
     }
 
     /// Set Caa of current CPU
-    pub fn set_caa(&mut self, caa: VirtAddr, vmpl: VMPL) {
+    pub fn set_caa(&mut self, caa: PhysAddr, vmpl: VMPL) {
         unsafe {
             let mut offset: usize = offset_of!(PerCpu, caa);
             offset += vmpl as usize * size_of::<u64>();
@@ -296,7 +296,7 @@ impl PerCpu {
     }
 
     /// Retrieve Caa of a given CPU
-    pub fn caa_for(&mut self, vmpl: VMPL, for_id: usize) -> VirtAddr {
+    pub fn caa_for(&mut self, vmpl: VMPL, for_id: usize) -> PhysAddr {
         let caa: u64;
 
         unsafe {
@@ -307,11 +307,11 @@ impl PerCpu {
             caa = (*p).caa[vmpl as usize];
         }
 
-        VirtAddr::new(caa)
+        PhysAddr::new(caa)
     }
 
     /// Set Caa of a given CPU
-    pub fn set_caa_for(&mut self, caa: VirtAddr, vmpl: VMPL, for_id: usize) {
+    pub fn set_caa_for(&mut self, caa: PhysAddr, vmpl: VMPL, for_id: usize) {
         unsafe {
             assert!(for_id < CPU_COUNT);
 
