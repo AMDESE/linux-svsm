@@ -26,7 +26,7 @@ const IST_STACK_PAGES: u64 = 3;
 unsafe fn create_tss() -> VirtAddr {
     let tss_va: VirtAddr = match mem_allocate(size_of::<TaskStateSegment>()) {
         Ok(f) => f,
-        Err(()) => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        Err(()) => vc_terminate_svsm_enomem(),
     };
 
     let tss: *mut TaskStateSegment = tss_va.as_mut_ptr();
@@ -37,7 +37,7 @@ unsafe fn create_tss() -> VirtAddr {
 
     let frame: PhysFrame = match mem_allocate_frames(IST_STACK_PAGES) {
         Some(f) => f,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        None => vc_terminate_svsm_enomem(),
     };
 
     let guard_va: VirtAddr = pgtable_pa_to_va(frame.start_address());

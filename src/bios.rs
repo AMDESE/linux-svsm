@@ -176,7 +176,7 @@ fn find_bios_guid_entry(bios_info: &mut BiosInfo, guid: &str) -> Option<u64> {
 
     let target_guid: Uuid = match Uuid::parse_str(guid) {
         Ok(g) => g,
-        Err(_e) => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_BIOS_FORMAT),
+        Err(_e) => vc_terminate_svsm_bios(),
     };
 
     unsafe { __find_bios_guid_entry(bios_info, target_guid, &mut avail_len, &mut p) }
@@ -216,7 +216,7 @@ unsafe fn __find_snp_section(bios_info: &mut BiosInfo, stype: u32, p: u64) -> Op
 fn find_snp_section(bios_info: &mut BiosInfo, stype: u32) -> Option<SnpSection> {
     let p: u64 = match find_bios_guid_entry(bios_info, OVMF_SNP_ENTRY_GUID) {
         Some(p) => p,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_BIOS_FORMAT),
+        None => vc_terminate_svsm_bios(),
     };
 
     unsafe { __find_snp_section(bios_info, stype, p) }
@@ -328,7 +328,7 @@ fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
 pub fn start_bios() {
     let (bios_va, bios_size) = match fwcfg_map_bios() {
         Some(t) => t,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_FW_CFG_ERROR),
+        None => vc_terminate_svsm_fwcfg(),
     };
 
     let mut bios_info: BiosInfo = BiosInfo::new(bios_va, bios_size);
@@ -338,7 +338,7 @@ pub fn start_bios() {
 
     let caa: PhysAddr = match locate_bios_ca_page(&mut bios_info) {
         Some(p) => p,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_BIOS_FORMAT),
+        None => vc_terminate_svsm_bios(),
     };
 
     unsafe {

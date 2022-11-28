@@ -9,7 +9,7 @@
 use crate::cpu::percpu::PERCPU;
 use crate::cpu::percpu_count;
 use crate::cpu::vc_register_ghcb;
-use crate::cpu::vc_terminate;
+use crate::cpu::vc_terminate_svsm_enomem;
 use crate::globals::*;
 use crate::mem::mem_allocate_frames;
 use crate::mem::pgtable_make_pages_shared;
@@ -146,7 +146,7 @@ pub fn ghcb_init() {
     let count: usize = percpu_count();
     let frame: PhysFrame = match mem_allocate_frames(count as u64) {
         Some(f) => f,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        None => vc_terminate_svsm_enomem(),
     };
     let mut va: VirtAddr = pgtable_pa_to_va(frame.start_address());
 

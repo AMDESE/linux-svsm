@@ -422,7 +422,7 @@ unsafe fn __percpu_init(init_frame: PhysFrame, init_count: u64) -> u64 {
     if count != init_count {
         frame = match mem_allocate_frames(count) {
             Some(f) => f,
-            None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+            None => vc_terminate_svsm_enomem(),
         };
     } else {
         frame = init_frame;
@@ -456,7 +456,7 @@ pub fn percpu_init() {
     let init_count: u64 = PAGE_COUNT!(PERCPU_SIZE);
     let init_frame: PhysFrame = match mem_allocate_frames(init_count) {
         Some(f) => f,
-        None => vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_ENOMEM),
+        None => vc_terminate_svsm_enomem(),
     };
     let count: u64;
 

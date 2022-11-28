@@ -20,7 +20,7 @@ use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::structures::paging::frame::PhysFrame;
 use x86_64::structures::paging::mapper::{
-    FlagUpdateError, MapToError, MapperFlush, TranslateResult, UnmapError,
+    FlagUpdateError, MapToError, MapperFlush, TranslateResult,
 };
 use x86_64::structures::paging::page::Page;
 use x86_64::structures::paging::page::{PageRange, Size4KiB};
@@ -70,14 +70,10 @@ fn remap_page(page: Page, page_type: PageType, flush: bool) {
     let mut allocator: PageTableAllocator = PageTableAllocator::new();
 
     unsafe {
-        let mut pa: PhysAddr = PhysAddr::new(0);
-
-        let result: Result<(PhysFrame<Size4KiB>, MapperFlush<Size4KiB>), UnmapError> =
-            PGTABLE.lock().unmap(page);
-        match result {
-            Ok(r) => pa = r.0.start_address(),
+        let pa: PhysAddr = match PGTABLE.lock().unmap(page) {
+            Ok(r) => r.0.start_address(),
             Err(_e) => vc_terminate_svsm_page_err(),
-        }
+        };
 
         let map_pa: PhysAddr;
         if page_type == PageType::Private {
