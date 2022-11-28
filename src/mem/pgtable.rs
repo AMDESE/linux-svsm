@@ -235,6 +235,60 @@ fn page_mapping_matches(va: VirtAddr, mframe: PhysFrame, mflags: PageTableFlags)
     use_mapping
 }
 
+unsafe fn __map_pages(
+    pa: PhysAddr,
+    len: u64,
+    page_type: PageType,
+) -> Result<VirtAddr, MapToError<Size4KiB>> {
+    assert!(len != 0);
+
+    let mut map: PhysAddr = pa.align_down(PAGE_SIZE);
+    let map_end: PhysAddr = PhysAddr::new(pa.as_u64() + len - 1_u64).align_down(PAGE_SIZE) + 1_u64;
+
+    let entry_flags: PageTableFlags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+    let table_flags: PageTableFlags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+
+    let mut allocator: PageTableAllocator = PageTableAllocator::new();
+
+    let pa_mod: u64 = match page_type {
+        PageType::Shared => 0,
+        PageType::Private => sev_encryption_mask,
+    };
+
+    while map < map_end {
+        let va: VirtAddr = pgtable_pa_to_va(map);
+        let private_pa: PhysAddr = PhysAddr::new(map.as_u64() | pa_mod);
+
+        let page: Page<Size4KiB> = Page::containing_address(va);
+        let frame: PhysFrame = PhysFrame::from_start_address_unchecked(private_pa);
+
+        let result: Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> = PGTABLE
+            .lock()
+            .map_to_with_table_flags(page, frame, entry_flags, table_flags, &mut allocator);
+        match result {
+            Ok(r) => r.flush(),
+            Err(e) => match e {
+                MapToError::PageAlreadyMapped(_) => {
+                    if !page_mapping_matches(va, frame, entry_flags) {
+                        if !pgtable_unmap_pages(va, PAGE_SIZE) {
+                            vc_terminate_svsm_page_err();
+                        }
+
+                        continue;
+                    }
+                }
+                _ => {
+                    return Err(e);
+                }
+            },
+        }
+
+        map += PAGE_SIZE;
+    }
+
+    Ok(pgtable_pa_to_va(pa))
+}
+
 unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocator) {
     let mut pa: PhysAddr = PhysAddr::new(svsm_begin);
     let pa_end: PhysAddr = PhysAddr::new(svsm_end);
@@ -293,7 +347,7 @@ unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocat
 }
 
 /// Unmap pages
-fn pgtable_unmap_pages(va: VirtAddr, len: u64) -> bool {
+pub fn pgtable_unmap_pages(va: VirtAddr, len: u64) -> bool {
     assert!(len != 0);
 
     let mut map: VirtAddr = va.align_down(PAGE_SIZE);
@@ -325,48 +379,12 @@ fn pgtable_unmap_pages(va: VirtAddr, len: u64) -> bool {
 /// If a previous mapping exists and does not conform to the new mapping, the
 /// previous mapping is replaced by the new mapping.
 pub fn pgtable_map_pages_private(pa: PhysAddr, len: u64) -> Result<VirtAddr, MapToError<Size4KiB>> {
-    assert!(len != 0);
+    unsafe { __map_pages(pa, len, PageType::Private) }
+}
 
-    let mut map: PhysAddr = pa.align_down(PAGE_SIZE);
-    let map_end: PhysAddr = PhysAddr::new(pa.as_u64() + len - 1_u64).align_down(PAGE_SIZE) + 1_u64;
-
-    let flags: PageTableFlags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-    let mut allocator: PageTableAllocator = PageTableAllocator::new();
-
-    unsafe {
-        while map < map_end {
-            let va: VirtAddr = pgtable_pa_to_va(map);
-            let private_pa: PhysAddr = PhysAddr::new(map.as_u64() | sev_encryption_mask);
-
-            let page: Page<Size4KiB> = Page::containing_address(va);
-            let frame: PhysFrame = PhysFrame::from_start_address_unchecked(private_pa);
-
-            let result: Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> = PGTABLE
-                .lock()
-                .map_to_with_table_flags(page, frame, flags, flags, &mut allocator);
-            match result {
-                Ok(r) => r.flush(),
-                Err(e) => match e {
-                    MapToError::PageAlreadyMapped(_) => {
-                        if !page_mapping_matches(va, frame, flags) {
-                            if !pgtable_unmap_pages(va, PAGE_SIZE) {
-                                vc_terminate_svsm_page_err();
-                            }
-
-                            continue;
-                        }
-                    }
-                    _ => {
-                        return Err(e);
-                    }
-                },
-            }
-
-            map += PAGE_SIZE;
-        }
-    }
-
-    Ok(pgtable_pa_to_va(pa))
+/// Map pages as shared
+pub fn pgtable_map_pages_shared(pa: PhysAddr, len: u64) -> Result<VirtAddr, MapToError<Size4KiB>> {
+    unsafe { __map_pages(pa, len, PageType::Shared) }
 }
 
 /// Generate 4-level page table, update Cr3 accordingly
