@@ -170,7 +170,7 @@ impl PerCpu {
             );
         }
 
-        VirtAddr::new_truncate(ghcb)
+        VirtAddr::new(ghcb)
     }
 
     /// Set GHCB of current CPU
@@ -195,7 +195,7 @@ impl PerCpu {
             ghcb = (*p).ghcb
         }
 
-        VirtAddr::new_truncate(ghcb)
+        VirtAddr::new(ghcb)
     }
 
     /// Set GHCB for a given CPU
@@ -223,7 +223,7 @@ impl PerCpu {
             );
         }
 
-        VirtAddr::new_truncate(vmsa)
+        VirtAddr::new(vmsa)
     }
 
     /// Set Vmsa for current CPU
@@ -251,7 +251,7 @@ impl PerCpu {
             vmsa = (*p).vmsa[vmpl as usize];
         }
 
-        VirtAddr::new_truncate(vmsa)
+        VirtAddr::new(vmsa)
     }
 
     /// Set Vmsa for a given CPU
@@ -279,7 +279,7 @@ impl PerCpu {
             );
         }
 
-        VirtAddr::new_truncate(caa)
+        VirtAddr::new(caa)
     }
 
     /// Set Caa of current CPU
@@ -307,7 +307,7 @@ impl PerCpu {
             caa = (*p).caa[vmpl as usize];
         }
 
-        VirtAddr::new_truncate(caa)
+        VirtAddr::new(caa)
     }
 
     /// Set Caa of a given CPU
@@ -332,7 +332,7 @@ impl PerCpu {
             );
         }
 
-        VirtAddr::new_truncate(tss)
+        VirtAddr::new(tss)
     }
 
     /// Set TSS of current CPU
@@ -357,7 +357,7 @@ impl PerCpu {
             tss = (*p).tss
         }
 
-        VirtAddr::new_truncate(tss)
+        VirtAddr::new(tss)
     }
 
     /// Set TSS for a given CPU
