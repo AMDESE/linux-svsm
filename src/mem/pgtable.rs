@@ -20,7 +20,7 @@ use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::structures::paging::frame::PhysFrame;
 use x86_64::structures::paging::mapper::{
-    FlagUpdateError, MapToError, MapperFlush, TranslateResult,
+    FlagUpdateError, MapToError, MapperFlush, TranslateResult, UnmapError,
 };
 use x86_64::structures::paging::page::Page;
 use x86_64::structures::paging::page::{PageRange, Size4KiB};
@@ -214,6 +214,27 @@ fn page_with_addr_pa(add: u64) -> Page<Size4KiB> {
     page_with_addr(pgtable_pa_to_va(PhysAddr::new(add)))
 }
 
+/// Determine if a current mapping matches the specified frame and flags values
+///
+/// When comparing the specified flags, the ACCESSED and DIRTY are ignored.
+fn page_mapping_matches(va: VirtAddr, mframe: PhysFrame, mflags: PageTableFlags) -> bool {
+    let ignore: PageTableFlags = PageTableFlags::ACCESSED | PageTableFlags::DIRTY;
+
+    let use_mapping: bool = match PGTABLE.lock().translate(va) {
+        TranslateResult::Mapped {
+            frame,
+            offset: _,
+            flags,
+        } => {
+            mframe.start_address() == frame.start_address()
+                && (mflags & !ignore) == (flags & !ignore)
+        }
+        TranslateResult::NotMapped | TranslateResult::InvalidFrameAddress(_) => false,
+    };
+
+    use_mapping
+}
+
 unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocator) {
     let mut pa: PhysAddr = PhysAddr::new(svsm_begin);
     let pa_end: PhysAddr = PhysAddr::new(svsm_end);
@@ -271,7 +292,38 @@ unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocat
     Cr3::write(cr3, Cr3Flags::empty());
 }
 
+/// Unmap pages
+fn pgtable_unmap_pages(va: VirtAddr, len: u64) -> bool {
+    assert!(len != 0);
+
+    let mut map: VirtAddr = va.align_down(PAGE_SIZE);
+    let map_end: VirtAddr = VirtAddr::new(va.as_u64() + len - 1_u64).align_down(PAGE_SIZE) + 1_u64;
+
+    while map < map_end {
+        let page: Page<Size4KiB> = Page::containing_address(map);
+
+        let result: Result<(PhysFrame<Size4KiB>, MapperFlush<Size4KiB>), UnmapError> =
+            PGTABLE.lock().unmap(page);
+        match result {
+            Ok((_f, r)) => r.flush(),
+            Err(e) => {
+                let v: u64 = map.as_u64();
+                prints!("pgtable_unmap_pages error: {:#x} => {:?}\n", v, e);
+
+                return false;
+            }
+        }
+
+        map += PAGE_SIZE;
+    }
+
+    true
+}
+
 /// Map pages as private
+///
+/// If a previous mapping exists and does not conform to the new mapping, the
+/// previous mapping is replaced by the new mapping.
 pub fn pgtable_map_pages_private(pa: PhysAddr, len: u64) -> Result<VirtAddr, MapToError<Size4KiB>> {
     assert!(len != 0);
 
@@ -287,18 +339,27 @@ pub fn pgtable_map_pages_private(pa: PhysAddr, len: u64) -> Result<VirtAddr, Map
             let private_pa: PhysAddr = PhysAddr::new(map.as_u64() | sev_encryption_mask);
 
             let page: Page<Size4KiB> = Page::containing_address(va);
-            let _frame: PhysFrame = PhysFrame::from_start_address_unchecked(private_pa);
+            let frame: PhysFrame = PhysFrame::from_start_address_unchecked(private_pa);
 
             let result: Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> = PGTABLE
                 .lock()
-                .map_to_with_table_flags(page, _frame, flags, flags, &mut allocator);
+                .map_to_with_table_flags(page, frame, flags, flags, &mut allocator);
             match result {
                 Ok(r) => r.flush(),
-                Err(e) => {
-                    if !core::matches!(e, MapToError::PageAlreadyMapped(_frame)) {
+                Err(e) => match e {
+                    MapToError::PageAlreadyMapped(_) => {
+                        if !page_mapping_matches(va, frame, flags) {
+                            if !pgtable_unmap_pages(va, PAGE_SIZE) {
+                                vc_terminate_svsm_page_err();
+                            }
+
+                            continue;
+                        }
+                    }
+                    _ => {
                         return Err(e);
                     }
-                }
+                },
             }
 
             map += PAGE_SIZE;
