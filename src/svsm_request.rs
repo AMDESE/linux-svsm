@@ -17,6 +17,7 @@ use crate::locking::LockGuard;
 use crate::locking::SpinLock;
 use crate::mem::ca::Ca;
 use crate::mem::pgtable_map_pages_private;
+use crate::mem::pgtable_unmap_pages;
 use crate::svsm_begin;
 use crate::*;
 
@@ -326,11 +327,14 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
     BARRIER!();
 
     if (xchg_efer & EFER_SVME) == 0 {
+        pgtable_unmap_pages(va, VMSA_MAP_SIZE);
         return;
     }
 
     // Turn the page into a non-VMSA page
     grant_vmpl_access(va, RMP_4K, VMPL::Vmpl1 as u8);
+
+    pgtable_unmap_pages(va, VMSA_MAP_SIZE);
 
     if PERCPU.vmsa_for(VMPL::Vmpl1, cpu_id) == gpa {
         PERCPU.set_vmsa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
@@ -411,6 +415,8 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         PERCPU.set_vmsa_for(create_vmsa_gpa, vmpl, cpu_id);
         PERCPU.set_caa_for(create_ca_gpa, vmpl, cpu_id);
 
+        pgtable_unmap_pages(create_vmsa_va, VMSA_MAP_SIZE);
+
         // Since the VA of the VMSA page is not known to the SVSM, a global ASID
         // flush must be done.
         invlpgb_all();
@@ -485,6 +491,8 @@ unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bo
         }
     }
 
+    pgtable_unmap_pages(va, len);
+
     (*vmsa).set_rax(SVSM_SUCCESS);
     (true, flush)
 }
@@ -533,6 +541,13 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
 
         e_va += size_of::<PvalidateEntry>();
         (*request).next += 1;
+    }
+
+    //
+    // If the PVALIDATE structure is not part of the CA, ensure it is unmapped.
+    //
+    if gpa.align_down(PAGE_SIZE) != PERCPU.caa(VMPL::Vmpl1).align_down(PAGE_SIZE) {
+        pgtable_unmap_pages(va, CAA_MAP_SIZE);
     }
 
     //

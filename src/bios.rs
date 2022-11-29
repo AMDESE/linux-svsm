@@ -278,6 +278,8 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
     (*bios_secrets).set_svsm_max_version(1);
     (*bios_secrets).set_svsm_guest_vmpl(1);
 
+    pgtable_unmap_pages(bios_secrets_va, section.size_u64());
+
     let section: SnpSection = match find_snp_section(bios_info, SNP_SECT_CPUID) {
         Some(p) => p,
         None => return false,
@@ -297,6 +299,8 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
     let svsm_cpuid: *const u8 = svsm_cpuid_va.as_ptr();
     let size: u64 = min(section.size_u64(), svsm_cpuid_page_size);
     copy_nonoverlapping(svsm_cpuid, bios_cpuid, size as usize);
+
+    pgtable_unmap_pages(bios_cpuid_va, section.size_u64());
 
     true
 }
@@ -372,6 +376,8 @@ pub fn start_bios() {
     if !smp_prepare_bios_vmpl(caa) {
         vc_terminate_svsm_general();
     }
+
+    pgtable_unmap_pages(bios_va, bios_size);
 
     if !smp_run_bios_vmpl() {
         vc_terminate_svsm_general();
