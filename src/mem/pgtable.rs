@@ -245,7 +245,8 @@ unsafe fn __map_pages(
     let mut map: PhysAddr = pa.align_down(PAGE_SIZE);
     let map_end: PhysAddr = PhysAddr::new(pa.as_u64() + len - 1_u64).align_down(PAGE_SIZE) + 1_u64;
 
-    let entry_flags: PageTableFlags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+    let entry_flags: PageTableFlags =
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE;
     let table_flags: PageTableFlags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
 
     let mut allocator: PageTableAllocator = PageTableAllocator::new();
