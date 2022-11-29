@@ -21,6 +21,7 @@ use crate::mem::pgtable_unmap_pages;
 use crate::svsm_begin;
 use crate::*;
 
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::intrinsics::size_of;
 use lazy_static::lazy_static;
@@ -31,7 +32,8 @@ use x86_64::structures::paging::frame::PhysFrame;
 /// Bit 12
 const EFER_SVME: u64 = BIT!(12);
 
-//const SVSM_CORE_PROTOCOL:       u32 = 0;
+/// 0
+const SVSM_CORE_PROTOCOL: u32 = 0;
 /// 0
 const SVSM_CORE_REMAP_CA: u32 = 0;
 /// 1
@@ -608,6 +610,83 @@ unsafe fn handle_query_protocol_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rcx(info);
 }
 
+unsafe fn handle_request(vmsa: *mut Vmsa) {
+    let protocol: u32 = UPPER_32BITS!((*vmsa).rax()) as u32;
+    let callid: u32 = LOWER_32BITS!((*vmsa).rax()) as u32;
+
+    match protocol {
+        SVSM_CORE_PROTOCOL => match callid {
+            SVSM_CORE_QUERY_PROTOCOL => handle_query_protocol_request(vmsa),
+            SVSM_CORE_REMAP_CA => handle_remap_ca_request(vmsa),
+            SVSM_CORE_PVALIDATE => handle_pvalidate_request(vmsa),
+            SVSM_CORE_CREATE_VCPU => handle_create_vcpu_request(vmsa),
+            SVSM_CORE_DELETE_VCPU => handle_delete_vcpu_request(vmsa),
+            SVSM_CORE_CONFIGURE_VTOM => handle_configure_vtom_request(vmsa),
+
+            _ => (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_CALLID),
+        },
+
+        _ => (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_PROTOCOL),
+    }
+}
+
+fn map_gpa(gpa: PhysAddr, len: u64) -> Result<VirtAddr, String> {
+    if gpa == PhysAddr::zero() {
+        let msg: String = alloc::format!("map_gpa: gpa cannot be zero");
+        return Err(msg);
+    }
+
+    let va: VirtAddr = match pgtable_map_pages_private(gpa, len) {
+        Ok(r) => r,
+        Err(e) => {
+            let msg: String = alloc::format!("map_gpa: {:?}", e);
+            return Err(msg);
+        }
+    };
+
+    Ok(va)
+}
+
+fn unmap_vmsa(va: VirtAddr) {
+    pgtable_unmap_pages(va, VMSA_MAP_SIZE);
+}
+
+fn map_vmsa(vmpl: VMPL) -> Result<VirtAddr, String> {
+    unsafe { map_gpa(PERCPU.vmsa(vmpl), VMSA_MAP_SIZE) }
+}
+
+fn unmap_ca(va: VirtAddr) {
+    pgtable_unmap_pages(va, CAA_MAP_SIZE);
+}
+
+fn map_ca(vmpl: VMPL) -> Result<VirtAddr, String> {
+    unsafe { map_gpa(PERCPU.caa(vmpl), CAA_MAP_SIZE) }
+}
+
+fn unmap_guest_input(ca_va: VirtAddr, vmsa_va: VirtAddr) {
+    unmap_vmsa(vmsa_va);
+    unmap_ca(ca_va);
+}
+
+fn map_guest_input(vmpl: VMPL) -> Result<(VirtAddr, VirtAddr), String> {
+    let ca_va: VirtAddr = match map_ca(vmpl) {
+        Ok(r) => r,
+        Err(e) => {
+            return Err(e);
+        }
+    };
+
+    let vmsa_va: VirtAddr = match map_vmsa(vmpl) {
+        Ok(r) => r,
+        Err(e) => {
+            unmap_ca(ca_va);
+            return Err(e);
+        }
+    };
+
+    Ok((ca_va, vmsa_va))
+}
+
 pub fn svsm_request_add_init_vmsa(vmsa_pa: PhysAddr, apic_id: u32) {
     add_vmsa(vmsa_pa, apic_id);
 }
@@ -615,65 +694,24 @@ pub fn svsm_request_add_init_vmsa(vmsa_pa: PhysAddr, apic_id: u32) {
 /// Process SVSM requests
 pub fn svsm_request_loop() {
     loop {
-        unsafe {
-            loop {
-                // Retrieve Calling Area Address
-                let ca_gpa: PhysAddr = PERCPU.caa(VMPL::Vmpl1);
-                if ca_gpa == PhysAddr::zero() {
-                    break;
-                }
-
-                let ca_va: VirtAddr = match pgtable_map_pages_private(ca_gpa, CAA_MAP_SIZE) {
-                    Ok(r) => r,
-                    Err(_) => break,
-                };
-
-                let ca: *mut Ca = ca_va.as_mut_ptr();
-                if (*ca).call_pending() != 1 {
-                    pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
-                    break;
-                }
-
-                let vmsa_pa: PhysAddr = PERCPU.vmsa(VMPL::Vmpl1);
-                if vmsa_pa == PhysAddr::zero() {
-                    pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
-                    break;
-                }
-
-                let vmsa_va: VirtAddr = match pgtable_map_pages_private(vmsa_pa, VMSA_MAP_SIZE) {
-                    Ok(r) => r,
-                    Err(_) => {
-                        pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
-                        break;
-                    }
-                };
-
+        //
+        // Limit the mapping of guest memory to only what is needed to process
+        // the request.
+        //
+        match map_guest_input(VMPL::Vmpl1) {
+            Ok((ca_va, vmsa_va)) => unsafe {
                 let vmsa: *mut Vmsa = vmsa_va.as_mut_ptr();
+                let ca: *mut Ca = ca_va.as_mut_ptr();
 
-                let protocol: u32 = UPPER_32BITS!((*vmsa).rax()) as u32;
-                let callid: u32 = LOWER_32BITS!((*vmsa).rax()) as u32;
+                if (*ca).call_pending() == 1 {
+                    (*ca).set_call_pending(0);
 
-                (*ca).set_call_pending(0);
-
-                if protocol > ProtocolId::MaxProtocolId as u32 {
-                    (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_PROTOCOL);
-                    break;
+                    handle_request(vmsa);
                 }
 
-                match callid {
-                    SVSM_CORE_QUERY_PROTOCOL => handle_query_protocol_request(vmsa),
-                    SVSM_CORE_REMAP_CA => handle_remap_ca_request(vmsa),
-                    SVSM_CORE_PVALIDATE => handle_pvalidate_request(vmsa),
-                    SVSM_CORE_CREATE_VCPU => handle_create_vcpu_request(vmsa),
-                    SVSM_CORE_DELETE_VCPU => handle_delete_vcpu_request(vmsa),
-                    SVSM_CORE_CONFIGURE_VTOM => handle_configure_vtom_request(vmsa),
-
-                    _ => (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_CALLID),
-                }
-
-                pgtable_unmap_pages(vmsa_va, VMSA_MAP_SIZE);
-                pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
-            }
+                unmap_guest_input(ca_va, vmsa_va);
+            },
+            Err(e) => prints!("{}", e),
         }
 
         vc_run_vmpl(VMPL::Vmpl1);
