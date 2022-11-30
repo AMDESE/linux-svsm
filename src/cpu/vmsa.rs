@@ -199,7 +199,9 @@ pub struct Vmsa {
 
     sev_features: u64,
 
-    reserved10: [u8; 16],
+    reserved10: [u8; 8],
+
+    guest_exitcode: u64,
 
     virtual_tom: u64,
 
@@ -295,6 +297,7 @@ impl Vmsa {
     funcs!(rip, u64);
     funcs!(rflags, u64);
     funcs!(sev_features, u64);
+    funcs!(guest_exitcode, u64);
     funcs!(xcr0, u64);
     funcs!(xss, u64);
     funcs!(x87_fcw, u16);

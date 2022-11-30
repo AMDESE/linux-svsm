@@ -32,6 +32,9 @@ use x86_64::structures::paging::frame::PhysFrame;
 /// Bit 12
 const EFER_SVME: u64 = BIT!(12);
 
+/// 0x403
+const VMEXIT_VMGEXIT: u64 = 0x403;
+
 /// 0
 const SVSM_CORE_PROTOCOL: u32 = 0;
 /// 0
@@ -155,6 +158,35 @@ struct PvalidateRequest {
 impl PvalidateRequest {
     funcs!(entries, u16);
     funcs!(next, u16);
+}
+
+unsafe fn update_vmsa_efer_svme(va: VirtAddr, svme: bool) -> bool {
+    flush(va);
+    BARRIER!();
+
+    let vmsa: *mut Vmsa = va.as_mut_ptr();
+    let efer_va: u64 = va.as_u64() + (*vmsa).efer_offset();
+
+    let cur_efer: u64 = (*vmsa).efer();
+    let new_efer: u64 = match svme {
+        true => cur_efer | EFER_SVME,
+        false => cur_efer & !EFER_SVME,
+    };
+
+    let xchg_efer: u64 = cmpxchg(cur_efer, new_efer, efer_va);
+    BARRIER!();
+
+    // If the cmpxchg() succeeds, xchg_efer will have the cur_efer value,
+    // otherwise, it will have the new_efer value.
+    xchg_efer == cur_efer
+}
+
+fn clr_vmsa_efer_svme(va: VirtAddr) -> bool {
+    unsafe { update_vmsa_efer_svme(va, false) }
+}
+
+fn set_vmsa_efer_svme(va: VirtAddr) -> bool {
+    unsafe { update_vmsa_efer_svme(va, true) }
 }
 
 fn del_vmsa(gpa: PhysAddr) -> bool {
@@ -317,18 +349,11 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
     // EFER.SVME must be set to zero
     (*vmsa).set_rax(SVSM_ERR_PROTOCOL_FAIL_INUSE);
 
-    flush(va);
-
-    BARRIER!();
-
-    let delete_vmsa: *mut Vmsa = va.as_mut_ptr();
-    let efer_va: u64 = va.as_u64() + (*delete_vmsa).efer_offset();
-    let cur_efer: u64 = (*delete_vmsa).efer();
-    let new_efer: u64 = cur_efer & !EFER_SVME;
-    let xchg_efer: u64 = cmpxchg(cur_efer, new_efer, efer_va);
-    BARRIER!();
-
-    if (xchg_efer & EFER_SVME) == 0 {
+    //
+    // Set EFER.SVME to 0 to ensure the VMSA is not in-use and can't be used
+    // by the hypervisor to run the vCPU while it is being deleted.
+    //
+    if !clr_vmsa_efer_svme(va) {
         pgtable_unmap_pages(va, VMSA_MAP_SIZE);
         return;
     }
@@ -664,6 +689,11 @@ fn map_ca(vmpl: VMPL) -> Result<VirtAddr, String> {
 }
 
 fn unmap_guest_input(ca_va: VirtAddr, vmsa_va: VirtAddr) {
+    //
+    // Set EFER.SVME to 1 to allow the VMSA to be run by the hypervisor.
+    //
+    set_vmsa_efer_svme(vmsa_va);
+
     unmap_vmsa(vmsa_va);
     unmap_ca(ca_va);
 }
@@ -684,6 +714,18 @@ fn map_guest_input(vmpl: VMPL) -> Result<(VirtAddr, VirtAddr), String> {
         }
     };
 
+    //
+    // Set EFER.SVME to 0 to prevent the hypervisor from trying to
+    // run the vCPU while a request is being handled.
+    //
+    if !clr_vmsa_efer_svme(vmsa_va) {
+        unmap_vmsa(vmsa_va);
+        unmap_ca(ca_va);
+
+        let msg: String = alloc::format!("map_guest_input: clr_vmsa_efer_svme() failed");
+        return Err(msg);
+    }
+
     Ok((ca_va, vmsa_va))
 }
 
@@ -703,10 +745,10 @@ pub fn svsm_request_loop() {
                 let vmsa: *mut Vmsa = vmsa_va.as_mut_ptr();
                 let ca: *mut Ca = ca_va.as_mut_ptr();
 
-                if (*ca).call_pending() == 1 {
-                    (*ca).set_call_pending(0);
-
+                if (*vmsa).guest_exitcode() == VMEXIT_VMGEXIT && (*ca).call_pending() == 1 {
                     handle_request(vmsa);
+
+                    (*ca).set_call_pending(0);
                 }
 
                 unmap_guest_input(ca_va, vmsa_va);
