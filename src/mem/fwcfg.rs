@@ -13,6 +13,7 @@ use crate::globals::*;
 use crate::mem::mem_allocate_frame;
 use crate::mem::pgtable::*;
 use crate::util::locking::{LockGuard, SpinLock};
+use crate::util::util::memset;
 use crate::*;
 
 use alloc::vec::Vec;
@@ -120,6 +121,7 @@ lazy_static! {
         let va: VirtAddr = pgtable_pa_to_va(frame.start_address());
 
         pgtable_make_pages_shared(va, PAGE_SIZE);
+        memset(va.as_mut_ptr(), 0, PAGE_SIZE as usize);
 
         let dma: &mut FwCfgDma;
         unsafe {

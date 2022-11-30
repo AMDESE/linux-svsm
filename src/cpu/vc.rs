@@ -16,6 +16,7 @@ use crate::globals::*;
 use crate::mem::ghcb::Ghcb;
 use crate::mem::ghcb::*;
 use crate::mem::*;
+use crate::util::util::memset;
 use crate::*;
 
 use alloc::vec::Vec;
@@ -403,6 +404,7 @@ pub fn vc_get_apic_ids(bsp_apic_id: u32) -> Vec<u32> {
     let va: VirtAddr = pgtable_pa_to_va(pa);
 
     pgtable_make_pages_shared(va, pages * PAGE_SIZE);
+    memset(va.as_mut_ptr(), 0, (pages * PAGE_SIZE) as usize);
 
     unsafe {
         (*ghcb).set_rax(pages);

@@ -112,6 +112,12 @@ macro_rules! BARRIER {
     };
 }
 
+pub fn memset(dst: *mut u8, val: u8, len: usize) {
+    unsafe {
+        core::intrinsics::write_bytes(dst, val, len);
+    }
+}
+
 /// Infinite loop that updates rsi (debugging purposes)
 #[inline]
 pub fn loop_rsi(val: u64) {

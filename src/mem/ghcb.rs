@@ -14,6 +14,7 @@ use crate::globals::*;
 use crate::mem::mem_allocate_frames;
 use crate::mem::pgtable_make_pages_shared;
 use crate::mem::pgtable_pa_to_va;
+use crate::util::util::memset;
 use crate::BIT;
 use crate::STATIC_ASSERT;
 
@@ -151,6 +152,8 @@ pub fn ghcb_init() {
     let mut va: VirtAddr = pgtable_pa_to_va(frame.start_address());
 
     pgtable_make_pages_shared(va, count as u64 * PAGE_SIZE);
+    memset(va.as_mut_ptr(), 0, count * PAGE_SIZE as usize);
+
     unsafe {
         PERCPU.set_ghcb(va);
     }

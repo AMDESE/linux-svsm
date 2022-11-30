@@ -97,7 +97,11 @@ fn remap_page(page: Page, page_type: PageType, flush: bool) {
     }
 }
 
-/// Make pages private (updating flags)
+/// Make pages private
+///
+/// This sets the encryption bit of the page and does not change the
+/// underlying data to match. If the page was previously a shared page,
+/// the data will appear to the user as ciphertext now.
 pub fn pgtable_make_pages_private(va: VirtAddr, len: u64) {
     assert!(len != 0);
 
@@ -111,15 +115,14 @@ pub fn pgtable_make_pages_private(va: VirtAddr, len: u64) {
 
         remap_page(page, PageType::Private, true);
         vc_make_page_private(page_frame);
-
-        unsafe {
-            let dst: *mut u8 = begin.start_address().as_mut_ptr();
-            core::intrinsics::write_bytes(dst, 0, PAGE_SIZE as usize);
-        }
     }
 }
 
-/// Make pages shared via VC
+/// Make pages shared
+///
+/// This clears the encryption bit of the page and does not change the
+/// underlying data to match. If the page was previously a private page,
+/// the data will appear to the user as ciphertext now.
 pub fn pgtable_make_pages_shared(va: VirtAddr, len: u64) {
     assert!(len != 0);
 
@@ -133,11 +136,6 @@ pub fn pgtable_make_pages_shared(va: VirtAddr, len: u64) {
 
         vc_make_page_shared(page_frame);
         remap_page(page, PageType::Shared, true);
-
-        unsafe {
-            let dst: *mut u8 = begin.start_address().as_mut_ptr();
-            core::intrinsics::write_bytes(dst, 0, PAGE_SIZE as usize);
-        }
     }
 }
 
