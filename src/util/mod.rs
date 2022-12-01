@@ -13,5 +13,4 @@ pub mod serial;
 /// Auxiliary functions and macros
 pub mod util;
 
-pub use crate::util::serial::serial_init;
-pub use crate::util::serial::serial_out;
+pub use crate::util::serial::{serial_init, serial_out};
