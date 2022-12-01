@@ -17,7 +17,6 @@ use crate::locking::LockGuard;
 use crate::locking::SpinLock;
 use crate::mem::ca::Ca;
 use crate::mem::pgtable_map_pages_private;
-use crate::mem::pgtable_va_to_pa;
 use crate::svsm_begin;
 use crate::*;
 
@@ -307,7 +306,7 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
         None => return,
     };
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, PAGE_SIZE) {
+    let va: VirtAddr = match pgtable_map_pages_private(gpa, VMSA_MAP_SIZE) {
         Ok(v) => v,
         Err(_e) => return,
     };
@@ -333,8 +332,8 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
     // Turn the page into a non-VMSA page
     grant_vmpl_access(va, RMP_4K, VMPL::Vmpl1 as u8);
 
-    if PERCPU.vmsa_for(VMPL::Vmpl1, cpu_id) == va {
-        PERCPU.set_vmsa_for(VirtAddr::zero(), VMPL::Vmpl1, cpu_id);
+    if PERCPU.vmsa_for(VMPL::Vmpl1, cpu_id) == gpa {
+        PERCPU.set_vmsa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
         PERCPU.set_caa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
     }
     if !del_vmsa(gpa) {
@@ -355,7 +354,7 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         return;
     }
 
-    let create_vmsa_va: VirtAddr = match pgtable_map_pages_private(create_vmsa_gpa, PAGE_SIZE) {
+    let create_vmsa_va: VirtAddr = match pgtable_map_pages_private(create_vmsa_gpa, VMSA_MAP_SIZE) {
         Ok(v) => v,
         Err(_e) => return,
     };
@@ -409,7 +408,7 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
             None => break,
         };
 
-        PERCPU.set_vmsa_for(create_vmsa_va, vmpl, cpu_id);
+        PERCPU.set_vmsa_for(create_vmsa_gpa, vmpl, cpu_id);
         PERCPU.set_caa_for(create_ca_gpa, vmpl, cpu_id);
 
         // Since the VA of the VMSA page is not known to the SVSM, a global ASID
@@ -426,6 +425,8 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
 
     // On error turn the page (back) into a non-VMSA page
     grant_vmpl_access(create_vmsa_va, RMP_4K, vmpl as u8);
+
+    pgtable_unmap_pages(create_vmsa_va, VMSA_MAP_SIZE);
 
     // Since the VA of the VMSA page is not known to the SVSM, a global ASID
     // flush must be done.
@@ -592,8 +593,8 @@ unsafe fn handle_query_protocol_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rcx(info);
 }
 
-pub fn svsm_request_add_init_vmsa(vmsa_va: VirtAddr, apic_id: u32) {
-    add_vmsa(pgtable_va_to_pa(vmsa_va), apic_id);
+pub fn svsm_request_add_init_vmsa(vmsa_pa: PhysAddr, apic_id: u32) {
+    add_vmsa(vmsa_pa, apic_id);
 }
 
 /// Process SVSM requests
@@ -618,13 +619,21 @@ pub fn svsm_request_loop() {
                     break;
                 }
 
-                let va: VirtAddr = PERCPU.vmsa(VMPL::Vmpl1);
-                if va == VirtAddr::zero() {
+                let vmsa_pa: PhysAddr = PERCPU.vmsa(VMPL::Vmpl1);
+                if vmsa_pa == PhysAddr::zero() {
                     pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
                     break;
                 }
 
-                let vmsa: *mut Vmsa = va.as_mut_ptr();
+                let vmsa_va: VirtAddr = match pgtable_map_pages_private(vmsa_pa, VMSA_MAP_SIZE) {
+                    Ok(r) => r,
+                    Err(_) => {
+                        pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
+                        break;
+                    }
+                };
+
+                let vmsa: *mut Vmsa = vmsa_va.as_mut_ptr();
 
                 let protocol: u32 = UPPER_32BITS!((*vmsa).rax()) as u32;
                 let callid: u32 = LOWER_32BITS!((*vmsa).rax()) as u32;
@@ -647,6 +656,7 @@ pub fn svsm_request_loop() {
                     _ => (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_CALLID),
                 }
 
+                pgtable_unmap_pages(vmsa_va, VMSA_MAP_SIZE);
                 pgtable_unmap_pages(ca_va, CAA_MAP_SIZE);
             }
         }

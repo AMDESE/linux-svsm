@@ -239,7 +239,7 @@ fn ap_start(cpu_id: usize) -> bool {
     }
 
     unsafe {
-        PERCPU.set_vmsa_for(vmsa, VMPL::Vmpl0, cpu_id);
+        PERCPU.set_vmsa_for(pgtable_va_to_pa(vmsa), VMPL::Vmpl0, cpu_id);
 
         AP_SYNC = AP_STARTING;
         BARRIER!();
@@ -258,12 +258,19 @@ fn ap_start(cpu_id: usize) -> bool {
 pub fn smp_run_bios_vmpl() -> bool {
     unsafe {
         // Retrieve VMPL1 VMSA and start it
-        let vmsa: VirtAddr = PERCPU.vmsa(VMPL::Vmpl1);
-        if vmsa == VirtAddr::zero() {
+        let vmsa_pa: PhysAddr = PERCPU.vmsa(VMPL::Vmpl1);
+        if vmsa_pa == PhysAddr::zero() {
             return false;
         }
 
-        vc_ap_create(vmsa, PERCPU.apic_id());
+        let vmsa_va: VirtAddr = match pgtable_map_pages_private(vmsa_pa, PAGE_SIZE) {
+            Ok(r) => r,
+            Err(_e) => return false,
+        };
+
+        vc_ap_create(vmsa_va, PERCPU.apic_id());
+
+        pgtable_unmap_pages(vmsa_va, PAGE_SIZE);
     }
 
     true
@@ -272,13 +279,15 @@ pub fn smp_run_bios_vmpl() -> bool {
 /// Create a Vmsa and Caa and prepare them
 pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     let vmsa: VirtAddr = create_bios_vmsa();
+    let vmsa_pa: PhysAddr = pgtable_va_to_pa(vmsa);
+
     let caa: VirtAddr = match pgtable_map_pages_private(caa_pa, CAA_MAP_SIZE) {
         Ok(c) => c,
         Err(_e) => return false,
     };
 
     unsafe {
-        PERCPU.set_vmsa(vmsa, VMPL::Vmpl1);
+        PERCPU.set_vmsa(vmsa_pa, VMPL::Vmpl1);
         PERCPU.set_caa(caa_pa, VMPL::Vmpl1);
     }
 
@@ -322,10 +331,11 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     }
 
     unsafe {
-        svsm_request_add_init_vmsa(vmsa, PERCPU.apic_id());
+        svsm_request_add_init_vmsa(vmsa_pa, PERCPU.apic_id());
     }
 
     pgtable_unmap_pages(caa, CAA_MAP_SIZE);
+    pgtable_unmap_pages(vmsa, PAGE_SIZE);
 
     true
 }

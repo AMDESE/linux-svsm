@@ -210,7 +210,7 @@ impl PerCpu {
     }
 
     /// Obtain Vmsa for current CPU (i.e. its execution context)
-    pub fn vmsa(&mut self, vmpl: VMPL) -> VirtAddr {
+    pub fn vmsa(&mut self, vmpl: VMPL) -> PhysAddr {
         let vmsa: u64;
 
         unsafe {
@@ -223,11 +223,11 @@ impl PerCpu {
             );
         }
 
-        VirtAddr::new(vmsa)
+        PhysAddr::new(vmsa)
     }
 
     /// Set Vmsa for current CPU
-    pub fn set_vmsa(&mut self, vmsa: VirtAddr, vmpl: VMPL) {
+    pub fn set_vmsa(&mut self, vmsa: PhysAddr, vmpl: VMPL) {
         unsafe {
             let mut offset: usize = offset_of!(PerCpu, vmsa);
             offset += vmpl as usize * size_of::<u64>();
@@ -240,7 +240,7 @@ impl PerCpu {
     }
 
     /// Obtain Vmsa for a given vCPU
-    pub fn vmsa_for(&mut self, vmpl: VMPL, for_id: usize) -> VirtAddr {
+    pub fn vmsa_for(&mut self, vmpl: VMPL, for_id: usize) -> PhysAddr {
         let vmsa: u64;
 
         unsafe {
@@ -251,11 +251,11 @@ impl PerCpu {
             vmsa = (*p).vmsa[vmpl as usize];
         }
 
-        VirtAddr::new(vmsa)
+        PhysAddr::new(vmsa)
     }
 
     /// Set Vmsa for a given CPU
-    pub fn set_vmsa_for(&mut self, vmsa: VirtAddr, vmpl: VMPL, for_id: usize) {
+    pub fn set_vmsa_for(&mut self, vmsa: PhysAddr, vmpl: VMPL, for_id: usize) {
         unsafe {
             assert!(for_id < CPU_COUNT);
 

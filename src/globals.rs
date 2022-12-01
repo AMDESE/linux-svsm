@@ -113,3 +113,6 @@ pub enum VMPL {
 
 /// 8
 pub const CAA_MAP_SIZE: u64 = 8;
+
+/// PAGE_SIZE
+pub const VMSA_MAP_SIZE: u64 = PAGE_SIZE;
