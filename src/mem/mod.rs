@@ -17,24 +17,16 @@ pub mod ghcb;
 /// Page Table and its related operations
 pub mod pgtable;
 
-pub use crate::mem::alloc::mem_allocate;
-pub use crate::mem::alloc::mem_allocate_frame;
-pub use crate::mem::alloc::mem_allocate_frames;
-pub use crate::mem::alloc::mem_free;
-pub use crate::mem::alloc::mem_free_frame;
-pub use crate::mem::alloc::mem_free_frames;
-pub use crate::mem::alloc::mem_init;
+pub use crate::mem::alloc::{
+    mem_allocate, mem_allocate_frame, mem_allocate_frames, mem_free, mem_free_frame,
+    mem_free_frames, mem_init,
+};
 
-pub use crate::mem::pgtable::pgtable_init;
-pub use crate::mem::pgtable::pgtable_make_pages_np;
-pub use crate::mem::pgtable::pgtable_make_pages_nx;
-pub use crate::mem::pgtable::pgtable_make_pages_private;
-pub use crate::mem::pgtable::pgtable_make_pages_shared;
-pub use crate::mem::pgtable::pgtable_map_pages_private;
-pub use crate::mem::pgtable::pgtable_pa_to_va;
-pub use crate::mem::pgtable::pgtable_va_to_pa;
+pub use crate::mem::pgtable::{
+    pgtable_init, pgtable_make_pages_np, pgtable_make_pages_nx, pgtable_make_pages_private,
+    pgtable_make_pages_shared, pgtable_map_pages_private, pgtable_pa_to_va, pgtable_va_to_pa,
+};
 
 pub use crate::mem::ghcb::ghcb_init;
 
-pub use crate::mem::fwcfg::fwcfg_init;
-pub use crate::mem::fwcfg::fwcfg_map_bios;
+pub use crate::mem::fwcfg::{fwcfg_init, fwcfg_map_bios};
