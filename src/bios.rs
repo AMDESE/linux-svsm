@@ -78,12 +78,34 @@ struct SnpMetaData {
     section_count: u32,
 }
 
+#[allow(dead_code)]
+impl SnpMetaData {
+    funcs!(signature, u32);
+    funcs!(len, u32);
+    funcs!(version, u32);
+    funcs!(section_count, u32);
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C, packed)]
 struct SnpSection {
     address: u32,
     size: u32,
     stype: u32,
+}
+
+#[allow(dead_code)]
+impl SnpSection {
+    funcs!(address, u32);
+    funcs!(size, u32);
+    funcs!(stype, u32);
+
+    pub fn address_u64(&self) -> u64 {
+        self.address as u64
+    }
+    pub fn size_u64(&self) -> u64 {
+        self.size as u64
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -151,7 +173,7 @@ unsafe fn __find_bios_guid_entry(
     p: &mut u64,
 ) -> Option<u64> {
     /* Search is in reverse order */
-    while *p > bios_info.guid_table.begin {
+    while *p > bios_info.guid_table.begin() {
         let len: u64 = *((*p - GUID_SIZE - BIOS_TABLE_LEN_FIELD) as *const u16) as u64;
         if (len < (GUID_SIZE + BIOS_TABLE_LEN_FIELD)) || (len > *avail_len) {
             return None;
@@ -171,8 +193,8 @@ unsafe fn __find_bios_guid_entry(
 }
 
 fn find_bios_guid_entry(bios_info: &mut BiosInfo, guid: &str) -> Option<u64> {
-    let mut avail_len: u64 = bios_info.guid_table.len as u64;
-    let mut p: u64 = bios_info.guid_table.end;
+    let mut avail_len: u64 = bios_info.guid_table.len() as u64;
+    let mut p: u64 = bios_info.guid_table.end();
 
     let target_guid: Uuid = match Uuid::parse_str(guid) {
         Ok(g) => g,
@@ -184,26 +206,26 @@ fn find_bios_guid_entry(bios_info: &mut BiosInfo, guid: &str) -> Option<u64> {
 
 unsafe fn __find_snp_section(bios_info: &mut BiosInfo, stype: u32, p: u64) -> Option<SnpSection> {
     let offset: u64 = *(p as *const u32) as u64;
-    if offset > bios_info.size {
+    if offset > bios_info.size() {
         return None;
     }
 
     let metadata: *const SnpMetaData =
-        (bios_info.va + bios_info.size - offset) as *const SnpMetaData;
-    if (*metadata).signature != SNP_METADATA_SIGNATURE {
+        (bios_info.va() + bios_info.size() - offset) as *const SnpMetaData;
+    if (*metadata).signature() != SNP_METADATA_SIGNATURE {
         return None;
     }
 
-    let defined_len: u64 = (*metadata).len as u64;
-    let expected_len: u64 = (*metadata).section_count as u64 * size_of::<SnpSection>() as u64;
+    let defined_len: u64 = (*metadata).len() as u64;
+    let expected_len: u64 = (*metadata).section_count() as u64 * size_of::<SnpSection>() as u64;
     if defined_len < expected_len {
         return None;
     }
 
     let mut section: *const SnpSection =
         (metadata as u64 + size_of::<SnpMetaData>() as u64) as *const SnpSection;
-    for _i in 0..(*metadata).section_count {
-        if (*section).stype == stype {
+    for _i in 0..(*metadata).section_count() {
+        if (*section).stype() == stype {
             return Some(*section);
         }
 
@@ -228,14 +250,14 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
         None => return false,
     };
 
-    if (section.size as usize) < size_of::<SnpSecrets>() {
+    if (section.size() as usize) < size_of::<SnpSecrets>() {
         return false;
     }
 
-    let bios_secrets_pa: PhysAddr = PhysAddr::new(section.address as u64);
+    let bios_secrets_pa: PhysAddr = PhysAddr::new(section.address_u64());
 
     let bios_secrets_va: VirtAddr =
-        match pgtable_map_pages_private(bios_secrets_pa, section.size as u64) {
+        match pgtable_map_pages_private(bios_secrets_pa, section.size_u64()) {
             Ok(v) => v,
             Err(_e) => return false,
         };
@@ -261,19 +283,19 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
         None => return false,
     };
 
-    let bios_cpuid_pa: PhysAddr = PhysAddr::new(section.address as u64);
+    let bios_cpuid_pa: PhysAddr = PhysAddr::new(section.address_u64());
 
-    let bios_cpuid_va: VirtAddr =
-        match pgtable_map_pages_private(bios_cpuid_pa, section.size as u64) {
-            Ok(v) => v,
-            Err(_e) => return false,
-        };
+    let bios_cpuid_va: VirtAddr = match pgtable_map_pages_private(bios_cpuid_pa, section.size_u64())
+    {
+        Ok(v) => v,
+        Err(_e) => return false,
+    };
     let svsm_cpuid_va: VirtAddr = pgtable_pa_to_va(PhysAddr::new(svsm_cpuid_page));
 
     // Copy the CPUID page to the BIOS Secrets page location
     let bios_cpuid: *mut u8 = bios_cpuid_va.as_mut_ptr();
     let svsm_cpuid: *const u8 = svsm_cpuid_va.as_ptr();
-    let size: u64 = min(section.size as u64, svsm_cpuid_page_size);
+    let size: u64 = min(section.size_u64(), svsm_cpuid_page_size);
     copy_nonoverlapping(svsm_cpuid, bios_cpuid, size as usize);
 
     true
@@ -285,15 +307,15 @@ fn locate_bios_ca_page(bios_info: &mut BiosInfo) -> Option<PhysAddr> {
         None => return None,
     };
 
-    if (section.size as usize) < size_of::<u32>() {
+    if (section.size() as usize) < size_of::<u32>() {
         return None;
     }
 
-    return Some(PhysAddr::new(section.address as u64));
+    return Some(PhysAddr::new(section.address_u64()));
 }
 
 fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
-    if bios_info.size < (BIOS_TABLE_END + GUID_SIZE + BIOS_TABLE_LEN_FIELD) {
+    if bios_info.size() < (BIOS_TABLE_END + GUID_SIZE + BIOS_TABLE_LEN_FIELD) {
         return false;
     }
 
@@ -303,7 +325,7 @@ fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
     };
 
     unsafe {
-        let bios: *const u8 = (bios_info.va + bios_info.size - BIOS_TABLE_END) as *const u8;
+        let bios: *const u8 = (bios_info.va() + bios_info.size() - BIOS_TABLE_END) as *const u8;
         let bytes: *const Bytes = (bios as u64 - GUID_SIZE) as *const Bytes;
 
         let guid: Uuid = Uuid::from_bytes_le(*bytes);
@@ -312,7 +334,7 @@ fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
         }
 
         let len: *const u16 = (bios as u64 - GUID_SIZE - BIOS_TABLE_LEN_FIELD) as *const u16;
-        if (*len as u64) > bios_info.size {
+        if (*len as u64) > bios_info.size() {
             return false;
         }
 
