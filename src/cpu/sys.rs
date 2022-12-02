@@ -6,8 +6,9 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::BIT;
 use core::arch::asm;
+
+use crate::BIT;
 
 /// Read MSR
 pub fn rdmsr(msr: u32) -> u64 {

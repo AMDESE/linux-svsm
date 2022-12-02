@@ -5,18 +5,18 @@
  * Author: Joerg Roedel <jroedel@suse.de>
  */
 
-use crate::cpu::vc_early_make_pages_private;
-use crate::dyn_mem_begin;
-use crate::dyn_mem_end;
-use crate::globals::*;
-use crate::mem::{pgtable_pa_to_va, pgtable_va_to_pa};
-use crate::util::locking::SpinLock;
-use crate::STATIC_ASSERT;
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem::size_of;
 use core::ptr;
+
 use x86_64::addr::{align_up, PhysAddr, VirtAddr};
 use x86_64::structures::paging::frame::PhysFrame;
+
+use crate::cpu::vc_early_make_pages_private;
+use crate::globals::*;
+use crate::mem::{pgtable_pa_to_va, pgtable_va_to_pa};
+use crate::util::locking::SpinLock;
+use crate::{dyn_mem_begin, dyn_mem_end, STATIC_ASSERT};
 
 struct PageStorageType(u64);
 

@@ -6,23 +6,19 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::cpu::percpu::PERCPU;
-use crate::cpu::percpu_count;
-use crate::cpu::vc_register_ghcb;
-use crate::cpu::vc_terminate_svsm_enomem;
-use crate::globals::*;
-use crate::mem::mem_allocate_frames;
-use crate::mem::pgtable_make_pages_shared;
-use crate::mem::pgtable_pa_to_va;
-use crate::BIT;
-use crate::STATIC_ASSERT;
-
 use core::intrinsics::size_of;
 use core::ptr::copy_nonoverlapping;
+
 use memoffset::offset_of;
 use paste::paste;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::VirtAddr;
+
+use crate::cpu::percpu::PERCPU;
+use crate::cpu::{percpu_count, vc_register_ghcb, vc_terminate_svsm_enomem};
+use crate::globals::*;
+use crate::mem::{mem_allocate_frames, pgtable_make_pages_shared, pgtable_pa_to_va};
+use crate::{BIT, STATIC_ASSERT};
 
 /// 1
 pub const GHCB_VERSION_1: u16 = 1;

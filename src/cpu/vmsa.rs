@@ -6,13 +6,13 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::globals::*;
-use crate::STATIC_ASSERT;
-use crate::{funcs, BIT};
-
 use core::intrinsics::size_of;
+
 use memoffset::offset_of;
 use paste::paste;
+
+use crate::globals::*;
+use crate::{funcs, BIT, STATIC_ASSERT};
 
 // Sev Features for guest
 // Secure Nested Paging is active

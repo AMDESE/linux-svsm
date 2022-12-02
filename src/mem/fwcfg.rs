@@ -6,22 +6,22 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::cpu::pause;
+use alloc::vec::Vec;
+use core::intrinsics::size_of;
+use core::ptr::copy_nonoverlapping;
+
+use lazy_static::lazy_static;
+use memchr::memchr;
+use x86_64::addr::{PhysAddr, VirtAddr};
+use x86_64::structures::paging::PhysFrame;
+
 use crate::cpu::vc::vc_terminate_svsm_fwcfg;
-use crate::cpu::*;
+use crate::cpu::{pause, *};
 use crate::globals::*;
 use crate::mem::mem_allocate_frame;
 use crate::mem::pgtable::*;
 use crate::util::locking::{LockGuard, SpinLock};
 use crate::*;
-
-use alloc::vec::Vec;
-use core::intrinsics::size_of;
-use core::ptr::copy_nonoverlapping;
-use lazy_static::lazy_static;
-use memchr::memchr;
-use x86_64::addr::{PhysAddr, VirtAddr};
-use x86_64::structures::paging::PhysFrame;
 
 /// 0x510
 const FW_CFG_SELECTOR: u16 = 0x510;

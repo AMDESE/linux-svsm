@@ -6,27 +6,23 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::cpu::percpu::PERCPU;
-use crate::cpu::smp_get_cpu_id;
-use crate::cpu::sys::PVALIDATE_CF_SET;
-use crate::cpu::vmsa::Vmsa;
-use crate::cpu::*;
-use crate::cpu::{invlpgb_all, vc_run_vmpl};
-use crate::globals::*;
-use crate::locking::LockGuard;
-use crate::locking::SpinLock;
-use crate::mem::ca::Ca;
-use crate::mem::pgtable_map_pages_private;
-use crate::mem::pgtable_va_to_pa;
-use crate::svsm_begin;
-use crate::*;
-
 use alloc::vec::Vec;
 use core::intrinsics::size_of;
+
 use lazy_static::lazy_static;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::instructions::tlb::flush;
 use x86_64::structures::paging::frame::PhysFrame;
+
+use crate::cpu::percpu::PERCPU;
+use crate::cpu::sys::PVALIDATE_CF_SET;
+use crate::cpu::vmsa::Vmsa;
+use crate::cpu::*;
+use crate::globals::*;
+use crate::locking::{LockGuard, SpinLock};
+use crate::mem::ca::Ca;
+use crate::mem::{pgtable_map_pages_private, pgtable_va_to_pa};
+use crate::*;
 
 /// Bit 12
 const EFER_SVME: u64 = BIT!(12);

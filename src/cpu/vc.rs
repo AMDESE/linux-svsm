@@ -6,37 +6,26 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::cpu::percpu::PERCPU;
-use crate::cpu::pvalidate;
-use crate::cpu::sys::PVALIDATE_FAIL_SIZE_MISMATCH;
-use crate::cpu::vmsa::Vmsa;
-use crate::cpu::*;
-use crate::funcs;
-use crate::globals::*;
-use crate::mem::ghcb::Ghcb;
-use crate::mem::ghcb::*;
-use crate::mem::*;
-use crate::*;
-
 use alloc::vec::Vec;
 use core::arch::asm;
+use core::cmp::{max, min};
 use core::intrinsics::size_of;
-use x86_64::addr::PhysAddr;
-use x86_64::addr::VirtAddr;
+
+use x86_64::addr::{PhysAddr, VirtAddr};
+use x86_64::registers::control::{Cr4, Cr4Flags};
+use x86_64::registers::xcontrol::XCr0;
 use x86_64::structures::idt::*;
 use x86_64::structures::paging::frame::PhysFrame;
 
-use core::cmp::max;
-use core::cmp::min;
-
-use crate::cpu::cpuid::CpuidPage;
-use crate::cpu::cpuid::CpuidPageEntry;
-use crate::cpu::cpuid::CPUID_COUNT_MAX;
-use crate::svsm_cpuid_page;
-
-use x86_64::registers::control::Cr4;
-use x86_64::registers::control::Cr4Flags;
-use x86_64::registers::xcontrol::XCr0;
+use crate::cpu::cpuid::{CpuidPage, CpuidPageEntry, CPUID_COUNT_MAX};
+use crate::cpu::percpu::PERCPU;
+use crate::cpu::sys::PVALIDATE_FAIL_SIZE_MISMATCH;
+use crate::cpu::vmsa::Vmsa;
+use crate::cpu::{pvalidate, *};
+use crate::globals::*;
+use crate::mem::ghcb::{Ghcb, *};
+use crate::mem::*;
+use crate::{funcs, svsm_cpuid_page, *};
 
 /// 2
 const GHCB_PROTOCOL_MIN: u64 = 2;

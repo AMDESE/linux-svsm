@@ -6,6 +6,15 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
+use core::intrinsics::size_of;
+
+use x86_64::addr::{PhysAddr, VirtAddr};
+use x86_64::instructions::tables::{sgdt, sidt};
+use x86_64::registers::control::Cr3;
+use x86_64::structures::paging::frame::PhysFrame;
+use x86_64::structures::tss::TaskStateSegment;
+use x86_64::structures::DescriptorTablePointer;
+
 use crate::cpu::percpu::PERCPU;
 use crate::cpu::vc::*;
 use crate::cpu::vmsa::*;
@@ -14,14 +23,6 @@ use crate::globals::*;
 use crate::mem::*;
 use crate::svsm_request::*;
 use crate::*;
-
-use core::intrinsics::size_of;
-use x86_64::addr::{PhysAddr, VirtAddr};
-use x86_64::instructions::tables::{sgdt, sidt};
-use x86_64::registers::control::Cr3;
-use x86_64::structures::paging::frame::PhysFrame;
-use x86_64::structures::tss::TaskStateSegment;
-use x86_64::structures::DescriptorTablePointer;
 
 /// Bit 4
 const SEGMENT_TYPE_SUPERVISOR: u16 = BIT!(4);

@@ -6,14 +6,13 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
+use alloc::string::String;
+
+use lazy_static::lazy_static;
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+
 use crate::cpu::vc_handler;
 use crate::DOUBLE_FAULT_IST;
-
-use alloc::string::String;
-use lazy_static::lazy_static;
-use x86_64::structures::idt::InterruptDescriptorTable;
-use x86_64::structures::idt::InterruptStackFrame;
-use x86_64::structures::idt::PageFaultErrorCode;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {

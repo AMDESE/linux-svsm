@@ -6,15 +6,6 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::cpu::vc::*;
-use crate::cpu::vc_make_page_private;
-use crate::cpu::vc_make_page_shared;
-use crate::cpu::vc_terminate;
-use crate::globals::*;
-use crate::mem::mem_allocate_frame;
-use crate::util::locking::SpinLock;
-use crate::*;
-
 use lazy_static::lazy_static;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::registers::control::{Cr3, Cr3Flags};
@@ -22,9 +13,15 @@ use x86_64::structures::paging::frame::PhysFrame;
 use x86_64::structures::paging::mapper::{
     FlagUpdateError, MapToError, MapperFlush, TranslateResult,
 };
-use x86_64::structures::paging::page::Page;
-use x86_64::structures::paging::page::{PageRange, Size4KiB};
+use x86_64::structures::paging::page::{Page, PageRange, Size4KiB};
 use x86_64::structures::paging::*;
+
+use crate::cpu::vc::*;
+use crate::cpu::{vc_make_page_private, vc_make_page_shared, vc_terminate};
+use crate::globals::*;
+use crate::mem::mem_allocate_frame;
+use crate::util::locking::SpinLock;
+use crate::*;
 
 static OFFSET: VirtAddr = VirtAddr::zero();
 static mut P4: PageTable = PageTable::new();

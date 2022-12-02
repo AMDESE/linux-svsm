@@ -6,14 +6,16 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::mem::pgtable::*;
-use crate::*;
 use core::intrinsics::size_of;
+
 use x86_64::instructions::tables::load_tss;
 use x86_64::registers::segmentation::SegmentSelector;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
+
+use crate::mem::pgtable::*;
+use crate::*;
 
 // Index of the IST for #DF
 /// 0

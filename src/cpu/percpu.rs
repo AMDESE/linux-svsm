@@ -6,19 +6,18 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::cpu::vc_cpuid;
-use crate::cpu::wrmsr;
-use crate::cpu::*;
+use core::arch::asm;
+use core::intrinsics::size_of;
+
+use memoffset::offset_of;
+use x86_64::addr::*;
+use x86_64::structures::paging::PhysFrame;
+
+use crate::cpu::{vc_cpuid, wrmsr, *};
 use crate::globals::*;
 use crate::mem::*;
 use crate::percpu::alloc::vec::Vec;
 use crate::*;
-
-use core::arch::asm;
-use core::intrinsics::size_of;
-use memoffset::offset_of;
-use x86_64::addr::*;
-use x86_64::structures::paging::PhysFrame;
 
 #[repr(C)]
 #[derive(Debug)]

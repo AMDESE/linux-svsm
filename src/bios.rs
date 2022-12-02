@@ -6,17 +6,16 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::cpu::smp_prepare_bios_vmpl;
-use crate::cpu::smp_run_bios_vmpl;
-use crate::cpu::vc::*;
-use crate::*;
-
 use core::cmp::min;
 use core::intrinsics::size_of;
 use core::ptr::copy_nonoverlapping;
-use uuid::Bytes;
-use uuid::Uuid;
+
+use uuid::{Bytes, Uuid};
 use x86_64::{PhysAddr, VirtAddr};
+
+use crate::cpu::vc::*;
+use crate::cpu::{smp_prepare_bios_vmpl, smp_run_bios_vmpl};
+use crate::*;
 
 /// 2
 const BIOS_TABLE_LEN_FIELD: u64 = 2;

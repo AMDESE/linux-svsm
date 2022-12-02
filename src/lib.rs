@@ -33,16 +33,15 @@ pub mod util;
 
 extern crate alloc;
 
+use core::panic::PanicInfo;
+
 use crate::bios::start_bios;
-use crate::cpu::rmpadjust;
-use crate::cpu::*;
+use crate::cpu::{rmpadjust, *};
 use crate::globals::*;
 use crate::mem::*;
 use crate::svsm_request::svsm_request_loop;
 use crate::util::*;
 use crate::vmsa::*;
-
-use core::panic::PanicInfo;
 
 extern "C" {
     static sev_encryption_mask: u64;

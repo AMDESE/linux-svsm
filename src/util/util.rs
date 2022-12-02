@@ -6,8 +6,9 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::prints;
 use core::arch::asm;
+
+use crate::prints;
 
 /// Generate set/get methods for a given struct field and type
 #[macro_export]

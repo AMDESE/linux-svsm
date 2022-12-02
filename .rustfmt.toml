@@ -1,0 +1,8 @@
+# Aggregate all imports
+imports_granularity = "Module"
+
+# Allow reordering of imports
+reorder_imports = true
+
+# Group imports into three groups
+group_imports = "StdExternalCrate"

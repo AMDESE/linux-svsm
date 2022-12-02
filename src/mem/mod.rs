@@ -21,12 +21,9 @@ pub use crate::mem::alloc::{
     mem_allocate, mem_allocate_frame, mem_allocate_frames, mem_free, mem_free_frame,
     mem_free_frames, mem_init,
 };
-
+pub use crate::mem::fwcfg::{fwcfg_init, fwcfg_map_bios};
+pub use crate::mem::ghcb::ghcb_init;
 pub use crate::mem::pgtable::{
     pgtable_init, pgtable_make_pages_np, pgtable_make_pages_nx, pgtable_make_pages_private,
     pgtable_make_pages_shared, pgtable_map_pages_private, pgtable_pa_to_va, pgtable_va_to_pa,
 };
-
-pub use crate::mem::ghcb::ghcb_init;
-
-pub use crate::mem::fwcfg::{fwcfg_init, fwcfg_map_bios};
