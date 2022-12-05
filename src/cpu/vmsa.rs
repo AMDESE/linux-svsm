@@ -56,7 +56,7 @@ pub const SEV_FEAT_VMPL_SSS: u64 = BIT!(8);
 pub const SEV_FEAT_SECURE_TSC: u64 = BIT!(9);
 
 // Reserved
-/// Bits [13:10]
+/// Bits 10 to 13
 pub const SEV_FEAT_RESERVED_1: u64 = 0b1111 << 10;
 
 // VMSA Register Protection is enabled
@@ -64,7 +64,7 @@ pub const SEV_FEAT_RESERVED_1: u64 = 0b1111 << 10;
 pub const SEV_FEAT_VMSA_REG_PROTECTION: u64 = BIT!(14);
 
 // Reserved
-/// Bits [63:15]
+/// Bits 15 to 63
 pub const SEV_FEAT_RESERVED_2: u64 = !(BIT!(15) - 1);
 
 //
