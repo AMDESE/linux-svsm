@@ -109,13 +109,9 @@ $ source edksetup.sh
 $ nice build -v -q --cmd-len=64436 -DDEBUG_ON_SERIAL_PORT -n 32 -t GCC5 -a X64 -p OvmfPkg/OvmfPkgX64.dsc
 ```
 
-If your error involves still not finding Python, you can try the following
-command (but be aware this may affect other components of your system that
-use Python):
-
-```
-$ sudo cp /bin/python3 /bin/python
-```
+If your error involves still not finding Python, you may try to replace `python`
+with `python3` in the file `BaseTools/Tests/GNUmakefile` of the `ovmf` folder
+that you have just cloned.
 
 ## Installation <a name="install"></a>
 
