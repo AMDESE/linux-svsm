@@ -111,7 +111,9 @@ $ nice build -v -q --cmd-len=64436 -DDEBUG_ON_SERIAL_PORT -n 32 -t GCC5 -a X64 -
 
 If your error involves still not finding Python, you may try to replace `python`
 with `python3` in the file `BaseTools/Tests/GNUmakefile` of the `ovmf` folder
-that you have just cloned.
+that you have just cloned, or you can create a symlink with `sudo ln -s /usr/bin/python3 /usr/bin/python`.
+
+If you ever encountered a problem with `nasm` installed by `apt install`, you may build and install an up-to-date version of `nasm` from source. It solves the problem. Package `zstd` is also required.
 
 ## Installation <a name="install"></a>
 
