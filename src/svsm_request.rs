@@ -592,7 +592,7 @@ unsafe fn handle_remap_ca_request(vmsa: *mut Vmsa) {
 
     let caa: PhysAddr = PhysAddr::new((*vmsa).rcx());
 
-    if !caa.is_aligned(8_u64) {
+    if !caa.is_aligned(PAGE_SIZE) {
         return;
     }
 
