@@ -385,6 +385,12 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         return;
     }
 
+    if !address_valid(PhysFrame::containing_address(create_vmsa_gpa), 0)
+        || !address_valid(PhysFrame::containing_address(create_ca_gpa), 0)
+    {
+        return;
+    }
+
     let create_vmsa_va: VirtAddr = match pgtable_map_pages_private(create_vmsa_gpa, VMSA_MAP_SIZE) {
         Ok(v) => v,
         Err(_e) => return,
