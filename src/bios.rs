@@ -12,7 +12,7 @@ use crate::cpu::vc::*;
 use crate::*;
 
 use core::cmp::min;
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use core::ptr::copy_nonoverlapping;
 use uuid::Bytes;
 use uuid::Uuid;

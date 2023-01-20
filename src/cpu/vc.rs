@@ -21,7 +21,7 @@ use crate::*;
 
 use alloc::vec::Vec;
 use core::arch::asm;
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use x86_64::addr::PhysAddr;
 use x86_64::addr::VirtAddr;
 use x86_64::structures::idt::*;

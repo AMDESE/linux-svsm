@@ -15,7 +15,7 @@ use crate::mem::*;
 use crate::svsm_request::*;
 use crate::*;
 
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::instructions::tables::{sgdt, sidt};
 use x86_64::registers::control::Cr3;
