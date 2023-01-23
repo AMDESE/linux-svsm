@@ -152,24 +152,6 @@ fn create_bios_vmsa() -> VirtAddr {
     vmsa_va
 }
 
-/// Create stack for an AP
-fn create_svsm_stack() -> VirtAddr {
-    let frame: PhysFrame = match mem_allocate_frames(SVSM_STACK_PAGES) {
-        Some(f) => f,
-        None => vc_terminate_svsm_enomem(),
-    };
-
-    let guard_va: VirtAddr = pgtable_pa_to_va(frame.start_address());
-    let stack_va: VirtAddr = pgtable_pa_to_va((frame + 1).start_address());
-
-    pgtable_make_pages_np(guard_va, PAGE_SIZE);
-    pgtable_make_pages_nx(stack_va, (SVSM_STACK_PAGES - 1) * PAGE_SIZE);
-
-    let stack: VirtAddr = pgtable_pa_to_va((frame + SVSM_STACK_PAGES).start_address());
-
-    stack
-}
-
 /// Create VMSA (execution context information) for an AP
 fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
     let frame: PhysFrame = alloc_vmsa();
@@ -233,7 +215,7 @@ fn ap_start(cpu_id: usize) -> bool {
         vc_terminate_svsm_general();
     }
 
-    let stack: VirtAddr = create_svsm_stack();
+    let stack: VirtAddr = mem_create_stack(SVSM_STACK_PAGES, false);
     unsafe {
         cpu_stack = stack.as_u64();
     }

@@ -18,8 +18,8 @@ pub mod ghcb;
 pub mod pgtable;
 
 pub use crate::mem::alloc::{
-    mem_allocate, mem_allocate_frame, mem_allocate_frames, mem_free, mem_free_frame,
-    mem_free_frames, mem_init,
+    mem_allocate, mem_allocate_frame, mem_allocate_frames, mem_create_stack, mem_free,
+    mem_free_frame, mem_free_frames, mem_init,
 };
 
 pub use crate::mem::pgtable::{

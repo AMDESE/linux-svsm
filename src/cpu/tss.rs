@@ -6,12 +6,10 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-use crate::mem::pgtable::*;
 use crate::*;
 use core::mem::size_of;
 use x86_64::instructions::tables::load_tss;
 use x86_64::registers::segmentation::SegmentSelector;
-use x86_64::structures::paging::PhysFrame;
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 
@@ -19,7 +17,7 @@ use x86_64::VirtAddr;
 /// 0
 pub const DOUBLE_FAULT_IST: usize = 0;
 
-// 2 stack pages and 1 guard page
+// 3 stack pages
 /// 3
 const IST_STACK_PAGES: u64 = 3;
 
@@ -35,21 +33,9 @@ unsafe fn create_tss() -> VirtAddr {
     // Make sure we have correct initial values
     *tss = tss_template;
 
-    let frame: PhysFrame = match mem_allocate_frames(IST_STACK_PAGES) {
-        Some(f) => f,
-        None => vc_terminate_svsm_enomem(),
-    };
+    let ist_stack: VirtAddr = mem_create_stack(IST_STACK_PAGES, false);
 
-    let guard_va: VirtAddr = pgtable_pa_to_va(frame.start_address());
-    let stack_va: VirtAddr = pgtable_pa_to_va((frame + 1).start_address());
-
-    // Protect guard page and make stack non executable
-    pgtable_make_pages_np(guard_va, PAGE_SIZE);
-    pgtable_make_pages_nx(stack_va, (IST_STACK_PAGES - 1) * PAGE_SIZE);
-
-    let stack: VirtAddr = pgtable_pa_to_va((frame + IST_STACK_PAGES).start_address());
-
-    (*tss).interrupt_stack_table[DOUBLE_FAULT_IST] = stack;
+    (*tss).interrupt_stack_table[DOUBLE_FAULT_IST] = ist_stack;
 
     tss_va
 }

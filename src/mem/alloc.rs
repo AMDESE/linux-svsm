@@ -10,7 +10,9 @@ use crate::dyn_mem_begin;
 use crate::dyn_mem_end;
 use crate::globals::*;
 use crate::mem::{pgtable_pa_to_va, pgtable_va_to_pa};
+use crate::pgtable::*;
 use crate::util::locking::SpinLock;
+use crate::vc_terminate_svsm_enomem;
 use crate::STATIC_ASSERT;
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem::size_of;
@@ -1091,6 +1093,31 @@ pub static mut ALLOCATOR: SvsmAllocator = SvsmAllocator::new();
 #[alloc_error_handler]
 fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     panic!("Allocation failed: {:?}\n", layout)
+}
+
+/// Create a stack of size stack_pages and add a guard page
+/// also make the stack user accessible if needed
+pub fn mem_create_stack(stack_pages: u64, user_space: bool) -> VirtAddr {
+    let total_pages: u64 = stack_pages + 1;
+    let frame: PhysFrame = match mem_allocate_frames(total_pages) {
+        Some(f) => f,
+        None => vc_terminate_svsm_enomem(),
+    };
+
+    let guard_va: VirtAddr = pgtable_pa_to_va(frame.start_address());
+    let stack_va: VirtAddr = pgtable_pa_to_va((frame + 1).start_address());
+
+    // Protect guard page and make stack non executable
+    pgtable_make_pages_np(guard_va, PAGE_SIZE);
+    pgtable_make_pages_nx(stack_va, stack_pages * PAGE_SIZE);
+
+    if user_space {
+        pgtable_make_pages_user(stack_va, stack_pages * PAGE_SIZE);
+    }
+
+    let stack: VirtAddr = pgtable_pa_to_va((frame + total_pages).start_address());
+
+    stack
 }
 
 fn root_mem_init(pstart: PhysAddr, vstart: VirtAddr, page_count: usize) {
