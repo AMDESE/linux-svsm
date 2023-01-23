@@ -23,7 +23,7 @@ use crate::*;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use lazy_static::lazy_static;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::instructions::tlb::flush;

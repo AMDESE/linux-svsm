@@ -18,7 +18,7 @@ use crate::util::util::memset;
 use crate::BIT;
 use crate::STATIC_ASSERT;
 
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use core::ptr::copy_nonoverlapping;
 use memoffset::offset_of;
 use paste::paste;

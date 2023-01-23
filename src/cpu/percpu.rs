@@ -15,7 +15,7 @@ use crate::percpu::alloc::vec::Vec;
 use crate::*;
 
 use core::arch::asm;
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use memoffset::offset_of;
 use x86_64::addr::*;
 use x86_64::structures::paging::PhysFrame;

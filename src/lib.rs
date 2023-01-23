@@ -6,7 +6,6 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-#![feature(core_intrinsics)]
 #![feature(type_ascription)]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]

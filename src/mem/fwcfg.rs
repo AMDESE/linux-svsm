@@ -17,7 +17,7 @@ use crate::util::util::memset;
 use crate::*;
 
 use alloc::vec::Vec;
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use core::ptr::copy_nonoverlapping;
 use lazy_static::lazy_static;
 use memchr::memchr;

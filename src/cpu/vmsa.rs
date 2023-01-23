@@ -10,7 +10,7 @@ use crate::globals::*;
 use crate::STATIC_ASSERT;
 use crate::{funcs, BIT};
 
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use memoffset::offset_of;
 use paste::paste;
 

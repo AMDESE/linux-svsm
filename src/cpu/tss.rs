@@ -8,7 +8,7 @@
 
 use crate::mem::pgtable::*;
 use crate::*;
-use core::intrinsics::size_of;
+use core::mem::size_of;
 use x86_64::instructions::tables::load_tss;
 use x86_64::registers::segmentation::SegmentSelector;
 use x86_64::structures::paging::PhysFrame;
