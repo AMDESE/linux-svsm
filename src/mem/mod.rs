@@ -25,7 +25,8 @@ pub use crate::mem::alloc::{
 pub use crate::mem::pgtable::{
     pgtable_init, pgtable_make_pages_np, pgtable_make_pages_nx, pgtable_make_pages_private,
     pgtable_make_pages_shared, pgtable_map_pages_private, pgtable_map_pages_shared,
-    pgtable_pa_to_va, pgtable_unmap_pages, pgtable_va_to_pa,
+    pgtable_pa_to_va, pgtable_print_pte_pa, pgtable_print_pte_va, pgtable_unmap_pages,
+    pgtable_va_to_pa,
 };
 
 pub use crate::mem::ghcb::ghcb_init;

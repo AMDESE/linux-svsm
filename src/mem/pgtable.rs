@@ -97,6 +97,69 @@ fn remap_page(page: Page, page_type: PageType, flush: bool) {
     }
 }
 
+fn __print_pte(va: VirtAddr) {
+    let page: Page<Size4KiB> = page_with_addr(va);
+    let translate: TranslateResult = PGTABLE.lock().translate(page.start_address());
+    let (frame, flags) = match translate {
+        TranslateResult::Mapped {
+            frame,
+            offset: _,
+            flags,
+        } => (frame, flags),
+        TranslateResult::NotMapped | TranslateResult::InvalidFrameAddress(_) => {
+            prints!("   Page with va {:#x} is not mapped!\n", va);
+            return;
+        }
+    };
+
+    let bits: u64 = flags.bits();
+    let frame: u64 = frame.start_address().as_u64();
+    let addr: u64 = va.as_u64();
+
+    prints!(
+        "   VA {:#x} mapped to PFN {:#x} with flags {:#x}\n",
+        addr,
+        frame,
+        bits
+    );
+
+    if flags & PageTableFlags::NO_EXECUTE != PageTableFlags::NO_EXECUTE {
+        prints!("   where NO_EXECUTE is NOT set, ");
+    } else {
+        prints!("   where NO_EXECUTE is set, ");
+    }
+
+    if flags & PageTableFlags::USER_ACCESSIBLE != PageTableFlags::USER_ACCESSIBLE {
+        prints!("USER_ACCESSIBLE is NOT set, ");
+    } else {
+        prints!("USER_ACCESSIBLE is set, ");
+    }
+
+    if flags & PageTableFlags::PRESENT != PageTableFlags::PRESENT {
+        prints!("PRESENT is NOT set, ");
+    } else {
+        prints!("PRESENT is set, ");
+    }
+
+    if flags & PageTableFlags::WRITABLE != PageTableFlags::WRITABLE {
+        prints!("WRITABLE is NOT set.\n");
+    } else {
+        prints!("WRITABLE is set.\n");
+    }
+}
+
+/// Print flags of a page given its VA
+#[inline]
+pub fn pgtable_print_pte_va(va: VirtAddr) {
+    __print_pte(va)
+}
+
+/// Print flags of a page given its PA
+#[inline]
+pub fn pgtable_print_pte_pa(pa: PhysAddr) {
+    __print_pte(pgtable_pa_to_va(pa))
+}
+
 /// Make pages private
 ///
 /// This sets the encryption bit of the page and does not change the
@@ -139,6 +202,7 @@ pub fn pgtable_make_pages_shared(va: VirtAddr, len: u64) {
     }
 }
 
+/// Update flags for a given range of pages
 fn update_page_flags(page_range: PageRange, set: PageTableFlags, clr: PageTableFlags, flush: bool) {
     for page in page_range {
         unsafe {
@@ -168,6 +232,18 @@ fn update_page_flags(page_range: PageRange, set: PageTableFlags, clr: PageTableF
             }
         }
     }
+}
+
+/// Make pages accessible from user space
+pub fn pgtable_make_pages_user(va: VirtAddr, len: u64) {
+    assert!(len != 0);
+
+    let begin: Page = Page::containing_address(va);
+    let end: Page = Page::containing_address(va + len - 1_u64);
+
+    let set: PageTableFlags = PageTableFlags::USER_ACCESSIBLE;
+    let clr: PageTableFlags = PageTableFlags::empty();
+    update_page_flags(Page::range(begin, end + 1), set, clr, true);
 }
 
 /// Make pages not executable
