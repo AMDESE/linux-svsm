@@ -142,7 +142,7 @@ impl PerCpu {
 
             let p: *const PerCpu =
                 (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *const PerCpu;
-            apic_id = (*p).cpu_id;
+            apic_id = (*p).apic_id;
         }
 
         apic_id
