@@ -210,4 +210,9 @@ The main authors and maintainers of this software are:
 They will act as reviewers for future contributions.
 
 Linux SVSM is distributed under the MIT license. For more information, read
-file LICENSE.
+file LICENSE. To obtain information about the crates that Linux SVSM
+depends on, you can run:
+
+```
+$./scripts/crates.sh
+```

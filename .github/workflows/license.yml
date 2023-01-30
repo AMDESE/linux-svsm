@@ -1,0 +1,11 @@
+name: License
+
+on: [push]
+
+jobs:
+  license_check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+    - uses: actions/checkout@v3
+    - run: bash ${GITHUB_WORKSPACE}/scripts/crates.sh --check
