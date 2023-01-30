@@ -60,10 +60,8 @@ prereq: .prereq
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 	source $(HOME)/.cargo/env
 	echo "source $(HOME)/.cargo/env" >> ~/.bashrc
-	rustup +nightly target add x86_64-unknown-none
 	rustup component add rust-src
 	rustup component add llvm-tools-preview
-	rustup override set nightly
 	cargo install xargo
 	cargo install bootimage
 	touch .prereq
