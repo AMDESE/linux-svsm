@@ -539,14 +539,14 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
     };
 
     let request: *mut PvalidateRequest = va.as_mut_ptr();
-    if (*request).entries == 0 || (*request).entries < (*request).next {
+    if (*request).entries() == 0 || (*request).entries() < (*request).next() {
         return;
     }
 
     // Request data cannot cross a 4K boundary
     let va_end: VirtAddr = va
         + size_of::<PvalidateRequest>()
-        + ((*request).entries as usize * size_of::<PvalidateEntry>())
+        + ((*request).entries() as usize * size_of::<PvalidateEntry>())
         - 1_u64;
 
     if va.align_down(PAGE_SIZE) != va_end.align_down(PAGE_SIZE) {
@@ -555,7 +555,7 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
 
     let mut flush: bool = false;
     let mut e_va: VirtAddr = va + size_of::<PvalidateRequest>();
-    while (*request).next < (*request).entries {
+    while (*request).next() < (*request).entries() {
         let entry: *const PvalidateEntry = e_va.as_ptr();
 
         let (success, should_flush) = handle_pvalidate(vmsa, entry);
@@ -567,7 +567,7 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
         }
 
         e_va += size_of::<PvalidateEntry>();
-        (*request).next += 1;
+        (*request).set_next((*request).next() + 1);
     }
 
     //
