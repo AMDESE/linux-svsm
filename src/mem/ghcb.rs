@@ -11,7 +11,7 @@ use crate::cpu::percpu_count;
 use crate::cpu::vc_register_ghcb;
 use crate::cpu::vc_terminate_svsm_enomem;
 use crate::globals::*;
-use crate::mem::mem_allocate_frames;
+use crate::mem::mem_allocate_frame;
 use crate::mem::pgtable_make_pages_shared;
 use crate::mem::pgtable_pa_to_va;
 use crate::util::util::memset;
@@ -144,26 +144,28 @@ impl Ghcb {
 pub fn ghcb_init() {
     STATIC_ASSERT!(size_of::<Ghcb>() == PAGE_SIZE as usize);
 
+    //
+    // Perform GHCB allocation in a loop to avoid allocation order failures
+    // for large vCPU counts.
+    //
     let count: usize = percpu_count();
-    let frame: PhysFrame = match mem_allocate_frames(count as u64) {
-        Some(f) => f,
-        None => vc_terminate_svsm_enomem(),
-    };
-    let mut va: VirtAddr = pgtable_pa_to_va(frame.start_address());
+    for i in 0..count {
+        let frame: PhysFrame = match mem_allocate_frame() {
+            Some(f) => f,
+            None => vc_terminate_svsm_enomem(),
+        };
+        let va: VirtAddr = pgtable_pa_to_va(frame.start_address());
 
-    pgtable_make_pages_shared(va, count as u64 * PAGE_SIZE);
-    memset(va.as_mut_ptr(), 0, count * PAGE_SIZE as usize);
+        pgtable_make_pages_shared(va, PAGE_SIZE);
+        memset(va.as_mut_ptr(), 0, PAGE_SIZE as usize);
 
-    unsafe {
-        PERCPU.set_ghcb(va);
-    }
-
-    vc_register_ghcb(frame.start_address());
-
-    for i in 1..count {
-        va += PAGE_SIZE;
         unsafe {
             PERCPU.set_ghcb_for(va, i);
+
+            if i == 0 {
+                // Register the BSPs GHCB
+                vc_register_ghcb(frame.start_address());
+            }
         }
     }
 }
