@@ -44,7 +44,7 @@ svsm.bin: svsm.bin.elf
 svsm.bin.elf: $(OBJS) src/start/svsm.lds
 	$(GCC) $(LD_FLAGS) -o $@ $(OBJS)
 
-%.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/util/*.rs
+%.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/protocols/*.rs src/util/*.rs
 	@xargo build --features $(FEATURES)
 
 %.o: %.S src/start/svsm.h

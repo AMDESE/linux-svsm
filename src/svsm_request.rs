@@ -16,6 +16,7 @@ use crate::globals::*;
 use crate::mem::ca::Ca;
 use crate::mem::pgtable_map_pages_private;
 use crate::mem::pgtable_unmap_pages;
+use crate::protocols::error_codes::*;
 use crate::vmsa_list::*;
 use crate::*;
 
@@ -43,26 +44,6 @@ const SVSM_CORE_DELETE_VCPU: u32 = 3;
 const SVSM_CORE_QUERY_PROTOCOL: u32 = 6;
 /// 7
 const SVSM_CORE_CONFIGURE_VTOM: u32 = 7;
-
-/// 0
-const SVSM_SUCCESS: u64 = 0;
-//const SVSM_ERR_INCOMPLETE:           u64 = 0x80000000;
-/// 0x80000001
-const SVSM_ERR_UNSUPPORTED_PROTOCOL: u64 = 0x80000001;
-/// 0x80000002
-const SVSM_ERR_UNSUPPORTED_CALLID: u64 = 0x80000002;
-/// 0x80000003
-const SVSM_ERR_INVALID_ADDRESS: u64 = 0x80000003;
-//const SVSM_ERR_INVALID_FORMAT:       u64 = 0x80000004;
-/// 0x80000005
-const SVSM_ERR_INVALID_PARAMETER: u64 = 0x80000005;
-/// 0x80000006
-const SVSM_ERR_INVALID_REQUEST: u64 = 0x80000006;
-
-/// 0x80001000
-const SVSM_ERR_PROTOCOL_BASE: u64 = 0x80001000;
-/// 0x80001003
-const SVSM_ERR_PROTOCOL_FAIL_INUSE: u64 = 0x80001003;
 
 #[derive(Clone, Copy, Debug)]
 struct VersionInfo {
