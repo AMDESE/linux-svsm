@@ -8,7 +8,7 @@
 
 use crate::cpu::percpu::PERCPU;
 use crate::cpu::smp_get_cpu_id;
-use crate::cpu::sys::PVALIDATE_CF_SET;
+use crate::cpu::sys::{EFER_SVME, PVALIDATE_CF_SET};
 use crate::cpu::vmsa::Vmsa;
 use crate::cpu::*;
 use crate::cpu::{invlpgb_all, vc_run_vmpl};
@@ -27,9 +27,6 @@ use lazy_static::lazy_static;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::instructions::tlb::flush;
 use x86_64::structures::paging::frame::PhysFrame;
-
-/// Bit 12
-const EFER_SVME: u64 = BIT!(12);
 
 /// 0x403
 const VMEXIT_VMGEXIT: u64 = 0x403;
