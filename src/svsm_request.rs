@@ -13,17 +13,14 @@ use crate::cpu::vmsa::Vmsa;
 use crate::cpu::*;
 use crate::cpu::{invlpgb_all, vc_run_vmpl};
 use crate::globals::*;
-use crate::locking::LockGuard;
-use crate::locking::SpinLock;
 use crate::mem::ca::Ca;
 use crate::mem::pgtable_map_pages_private;
 use crate::mem::pgtable_unmap_pages;
+use crate::vmsa_list::*;
 use crate::*;
 
 use alloc::string::String;
-use alloc::vec::Vec;
 use core::mem::size_of;
-use lazy_static::lazy_static;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::structures::paging::frame::PhysFrame;
 
@@ -67,21 +64,6 @@ const SVSM_ERR_PROTOCOL_BASE: u64 = 0x80001000;
 /// 0x80001003
 const SVSM_ERR_PROTOCOL_FAIL_INUSE: u64 = 0x80001003;
 
-#[derive(Clone, Copy, Debug)]
-struct VmsaInfo {
-    gpa: u64,
-    apic_id: u32,
-}
-
-#[allow(dead_code)]
-impl VmsaInfo {
-    funcs!(gpa, u64);
-    funcs!(apic_id, u32);
-}
-
-lazy_static! {
-    static ref VMSA_LIST: SpinLock<Vec<VmsaInfo>> = SpinLock::new(Vec::with_capacity(512));
-}
 #[derive(Clone, Copy, Debug)]
 struct VersionInfo {
     min: u32,
@@ -153,53 +135,6 @@ struct PvalidateRequest {
 impl PvalidateRequest {
     funcs!(entries, u16);
     funcs!(next, u16);
-}
-
-fn del_vmsa(gpa: PhysAddr) -> bool {
-    let mut vmsa_list: LockGuard<Vec<VmsaInfo>> = VMSA_LIST.lock();
-
-    for i in 0..vmsa_list.len() {
-        if vmsa_list[i].gpa == gpa.as_u64() {
-            vmsa_list.swap_remove(i);
-            return true;
-        }
-    }
-
-    false
-}
-
-#[inline]
-fn add_vmsa(gpa: PhysAddr, apic_id: u32) -> bool {
-    let mut vmsa_list: LockGuard<Vec<VmsaInfo>> = VMSA_LIST.lock();
-    vmsa_list.push(VmsaInfo {
-        gpa: gpa.as_u64(),
-        apic_id: apic_id,
-    });
-    true
-}
-
-fn vmsa_to_apic_id(gpa: PhysAddr) -> Option<u32> {
-    let vmsa_list: LockGuard<Vec<VmsaInfo>> = VMSA_LIST.lock();
-
-    for i in 0..vmsa_list.len() {
-        if vmsa_list[i].gpa() == gpa.as_u64() {
-            return Some(vmsa_list[i].apic_id());
-        }
-    }
-
-    return None;
-}
-
-fn vmsa_page(gpa: PhysAddr) -> bool {
-    let vmsa_list: LockGuard<Vec<VmsaInfo>> = VMSA_LIST.lock();
-
-    for i in 0..vmsa_list.len() {
-        if vmsa_list[i].gpa() == gpa.as_u64() {
-            return true;
-        }
-    }
-
-    false
 }
 
 unsafe fn address_valid(gfn: PhysFrame, page_size: u32) -> bool {

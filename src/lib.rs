@@ -29,6 +29,8 @@ pub mod mem;
 pub mod svsm_request;
 /// Auxiliary functions and macros
 pub mod util;
+/// Handle the list of VMSA pages
+pub mod vmsa_list;
 
 extern crate alloc;
 
