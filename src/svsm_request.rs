@@ -25,7 +25,6 @@ use alloc::vec::Vec;
 use core::mem::size_of;
 use lazy_static::lazy_static;
 use x86_64::addr::{PhysAddr, VirtAddr};
-use x86_64::instructions::tlb::flush;
 use x86_64::structures::paging::frame::PhysFrame;
 
 /// 0x403
@@ -154,35 +153,6 @@ struct PvalidateRequest {
 impl PvalidateRequest {
     funcs!(entries, u16);
     funcs!(next, u16);
-}
-
-unsafe fn update_vmsa_efer_svme(va: VirtAddr, svme: bool) -> bool {
-    flush(va);
-    BARRIER!();
-
-    let vmsa: *mut Vmsa = va.as_mut_ptr();
-    let efer_va: u64 = va.as_u64() + (*vmsa).efer_offset();
-
-    let cur_efer: u64 = (*vmsa).efer();
-    let new_efer: u64 = match svme {
-        true => cur_efer | EFER_SVME,
-        false => cur_efer & !EFER_SVME,
-    };
-
-    let xchg_efer: u64 = cmpxchg(cur_efer, new_efer, efer_va);
-    BARRIER!();
-
-    // If the cmpxchg() succeeds, xchg_efer will have the cur_efer value,
-    // otherwise, it will have the new_efer value.
-    xchg_efer == cur_efer
-}
-
-fn clr_vmsa_efer_svme(va: VirtAddr) -> bool {
-    unsafe { update_vmsa_efer_svme(va, false) }
-}
-
-fn set_vmsa_efer_svme(va: VirtAddr) -> bool {
-    unsafe { update_vmsa_efer_svme(va, true) }
 }
 
 fn del_vmsa(gpa: PhysAddr) -> bool {
