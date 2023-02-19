@@ -44,6 +44,8 @@
 *.i*86
 *.x86_64
 *.hex
+svsm.bin
+svsm.bin.elf
 
 # Debug files
 *.dSYM/
