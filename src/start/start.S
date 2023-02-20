@@ -8,6 +8,7 @@
 #include "svsm.h"
 
 #define CBIT(x)			(BIT(51) + x)
+#define GPA(x)			(x - SVSM_GVA_OFFSET_ASM)
 
 #define SVSM_PGD_ENTRY(x)	(CBIT(x) + 0x03)
 #define SVSM_P4D_ENTRY(x)	(CBIT(x) + 0x03)
@@ -34,6 +35,9 @@ GLOBAL(code_64)
 	cmpl	$0, cpu_mode(%rip)
 	jne	hl
 
+	/* Load RBX with the virtual address offset for use throughout boot */
+	movq	$SVSM_GVA_OFFSET_ASM, %rbx
+
 	/* GS is set for APs, only clear it after the AP check */
 	movq	%rax, %gs
 
@@ -53,8 +57,9 @@ insn:
 	/* Validate that the build load address matches the actual load address */
 	movq	$0x2f100, %rsi
 	leaq	code_64(%rip), %rax
-	movq	$SVSM_GPA_ASM, %rbx
-	cmpq	%rax, %rbx
+	subq	%rbx, %rax
+	movq	$SVSM_GPA_ASM, %rcx
+	cmpq	%rax, %rcx
 	jne	terminate_64
 
 	/*
@@ -83,6 +88,7 @@ psc:
 	pushq	%rax
 	pushq	%rdx
 
+	subq	%rbx, %rsi
 	movq	$2, %rax
 	shlq	$52, %rax
 	addq	$0x14, %rax
@@ -105,6 +111,8 @@ psc:
 	 * Build the PTE entries. Use the address of the early GHCB to
 	 * obtain the start and end of the 2MB page in which it lives.
 	 */
+	leaq	ghcb(%rip), %rsi
+	subq	%rbx, %rsi
 	andq	$PAGE_2MB_MASK, %rsi
 	addq	$PAGE_2MB_SIZE, %rsi
 	movq	$SVSM_PTE_ENTRY(0), %rax
@@ -126,8 +134,9 @@ set_pte:
 	shrq	$PAGE_SHIFT, %rax
 	andq	$PAGE_TABLE_INDEX_MASK, %rax
 	shlq	$3, %rax
-	leaq	pte(%rip), %rbx
-	addq	%rbx, %rax
+	leaq	pte(%rip), %rcx
+	addq	%rcx, %rax
+	subq	%rbx, %rsi
 	addq	$0x03, %rsi
 	movq	%rsi, (%rax)
 
@@ -137,13 +146,14 @@ set_pte:
 	shrq	$PAGE_2MB_SHIFT, %rax
 	andq	$PAGE_TABLE_INDEX_MASK, %rax
 	shlq	$3, %rax
-	leaq	pmd(%rip), %rbx
-	addq	%rbx, %rax
+	leaq	pmd(%rip), %rcx
+	addq	%rcx, %rax
 
-	leaq	pte(%rip), %rbx
+	leaq	pte(%rip), %rdx
+	subq	%rbx, %rdx
 	movq	$SVSM_PTE_ENTRY(0), %rcx
-	addq	%rcx, %rbx
-	movq	%rbx, (%rax)
+	addq	%rcx, %rdx
+	movq	%rdx, (%rax)
 
 	/* Flush the TLB - no globals, so CR3 update is enough */
 	mov	%cr3, %rax
@@ -165,7 +175,7 @@ set_pte:
 	rep	stosb
 
 	/* Save the start and end of the SVSM and dynamic memory */
-	movq	$SVSM_GPA_ASM, %rax
+	movq	$SVSM_GVA_ASM, %rax
 	movq	%rax, svsm_begin(%rip)
 	addq	$SVSM_MEM_ASM, %rax
 	movq	%rax, svsm_end(%rip)
@@ -273,15 +283,15 @@ GLOBAL(cpu_start)
 pgtables_start:
 pgd:
 	.fill	SVSM_PGD_INDEX, 8, 0
-	.quad	SVSM_PGD_ENTRY(p4d)
+	.quad	SVSM_PGD_ENTRY(GPA(p4d))
 	.fill	511 - SVSM_PGD_INDEX, 8, 0
 p4d:
 	.fill	SVSM_P4D_INDEX, 8, 0
-	.quad	SVSM_P4D_ENTRY(pud)
+	.quad	SVSM_P4D_ENTRY(GPA(pud))
 	.fill	511 - SVSM_P4D_INDEX, 8, 0
 pud:
 	.fill	SVSM_PUD_INDEX, 8, 0
-	.quad	SVSM_PUD_ENTRY(pmd)
+	.quad	SVSM_PUD_ENTRY(GPA(pmd))
 	.fill	511 - SVSM_PUD_INDEX, 8, 0
 pmd:
 	.fill	SVSM_PMD_INDEX, 8, 0
@@ -390,17 +400,17 @@ svsm_snp_metadata:
 
 svsm_snp_sections:
 	/* SEV SNP Secrets Page */
-	.quad	SVSM_SNP_SECRETS_PAGE_BASE
+	.quad	GPA(SVSM_SNP_SECRETS_PAGE_BASE)
 	.long	SVSM_SNP_SECRETS_PAGE_SIZE
 	.long	2
 
 	/* SEV SNP CPUID Page */
-	.quad	SVSM_SNP_CPUID_PAGE_BASE
+	.quad	GPA(SVSM_SNP_CPUID_PAGE_BASE)
 	.long	SVSM_SNP_CPUID_PAGE_SIZE
 	.long	3
 
 	/* BIOS BSP VMSA Page */
-	.quad	SVSM_SNP_BIOS_BSP_PAGE_BASE
+	.quad	GPA(SVSM_SNP_BIOS_BSP_PAGE_BASE)
 	.long	SVSM_SNP_BIOS_BSP_PAGE_SIZE
 	.long	5
 svsm_snp_metadata_end:
@@ -422,7 +432,7 @@ svsm_guid_snp_end:
 svsm_guid_info:
 	.quad	SVSM_GPA_ASM						/* SVSM load address */
 	.quad	SVSM_MEM_ASM						/* SVSM memory footprint */
-	.quad	CBIT(p4d)						/* SVSM pagetable (4-level) */
+	.quad	CBIT(GPA(p4d))						/* SVSM pagetable (4-level) */
 	.quad	gdt64							/* SVSM GDT */
 	.word	SVSM_GDT_LIMIT						/* SVSM GDT limit */
 	.quad	idt64							/* SVSM IDT */

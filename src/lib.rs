@@ -99,7 +99,7 @@ fn check_svsm_address() {
         if !PAGE_2MB_ALIGNED!(svsm_begin) || !PAGE_2MB_ALIGNED!(total_size) {
             vc_terminate_svsm_general();
         }
-        // svsm_end is SVSM_GPA + SVSM_MEM. dyn_mem_begin is calculated based on
+        // svsm_end is SVSM_GVA + SVSM_MEM. dyn_mem_begin is calculated based on
         // edata, so make sure it is within boundaries
         if svsm_end < dyn_mem_begin {
             vc_terminate_svsm_general();

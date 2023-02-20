@@ -14,7 +14,7 @@ ENTRY(code_64)
 
 SECTIONS
 {
-	. = SVSM_GPA_LDS;
+	. = SVSM_GVA_LDS;
 
 	.text : {
 	stext = .;
@@ -52,5 +52,5 @@ SECTIONS
 		*(.note.gnu.build-id)
 	}
 
-	. = ASSERT(!(SVSM_GPA_LDS & 0xfffff), "SVSM_GPA not 2MB aligned! make clean and try again...");
+	. = ASSERT(!(SVSM_GVA_LDS & 0xfffff), "SVSM_GPA not 2MB aligned! make clean and try again...");
 }
