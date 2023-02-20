@@ -53,7 +53,7 @@ insn:
 	/* Validate that the build load address matches the actual load address */
 	movq	$0x2f100, %rsi
 	leaq	code_64(%rip), %rax
-	movq	$SVSM_GPA, %rbx
+	movq	$SVSM_GPA_ASM, %rbx
 	cmpq	%rax, %rbx
 	jne	terminate_64
 
@@ -165,9 +165,9 @@ set_pte:
 	rep	stosb
 
 	/* Save the start and end of the SVSM and dynamic memory */
-	movq	$SVSM_GPA, %rax
+	movq	$SVSM_GPA_ASM, %rax
 	movq	%rax, svsm_begin(%rip)
-	addq	$SVSM_MEM, %rax
+	addq	$SVSM_MEM_ASM, %rax
 	movq	%rax, svsm_end(%rip)
 
 	movq	%rax, dyn_mem_end(%rip)
@@ -287,7 +287,7 @@ pmd:
 	.fill	SVSM_PMD_INDEX, 8, 0
 	i = 0
 	.rept	SVSM_PMD_COUNT
-	.quad	SVSM_PMD_ENTRY(SVSM_GPA + i)
+	.quad	SVSM_PMD_ENTRY(SVSM_GPA_ASM + i)
 	i = i + SVSM_PMD_SIZE
 	.endr
 	.fill	511 - SVSM_PMD_INDEX - SVSM_PMD_COUNT + 1, 8, 0
@@ -420,8 +420,8 @@ svsm_guid_snp_end:
 
 /* SVSM INFO GUID: a789a612-0597-4c4b-a49f-cbb1fe9d1ddd */
 svsm_guid_info:
-	.quad	SVSM_GPA						/* SVSM load address */
-	.quad	SVSM_MEM						/* SVSM memory footprint */
+	.quad	SVSM_GPA_ASM						/* SVSM load address */
+	.quad	SVSM_MEM_ASM						/* SVSM memory footprint */
 	.quad	CBIT(p4d)						/* SVSM pagetable (4-level) */
 	.quad	gdt64							/* SVSM GDT */
 	.word	SVSM_GDT_LIMIT						/* SVSM GDT limit */

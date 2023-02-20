@@ -42,38 +42,42 @@ _name:
 #define PAGE_2MB_MASK			~(PAGE_2MB_SIZE - 1)
 #define PAGE_2MB_ALIGNED(x)		ALIGNED((u64)(x), PAGE_2MB_SIZE)
 
-#ifndef SVSM_GPA_LDS
-#define SVSM_GPA_LDS			0x8000000000
-#endif /* SVSM_GPA_LDS */
-
 #ifndef SVSM_GPA
-#define SVSM_GPA			0x8000000000ULL	/* 512 GB start */
+#define SVSM_GPA			0x8000000000	/* 512 GB start */
 #endif /* SVSM_GPA */
 
 #ifndef SVSM_MEM
-#define SVSM_MEM			0x10000000ULL	/* 256 MB of memory */
+#define SVSM_MEM			0x10000000	/* 256 MB of memory */
 #endif /* SVSM_MEM */
 
-#define SVSM_PAGES			(SVSM_MEM / PAGE_SIZE)
+#define __ASM_ULL(x)			x ## ULL
+#define ASM_ULL(x)			__ASM_ULL(x)
+
+#define SVSM_GPA_ASM			ASM_ULL(SVSM_GPA)
+#define SVSM_MEM_ASM			ASM_ULL(SVSM_MEM)
+
+#define SVSM_GPA_LDS			SVSM_GPA
+
+#define SVSM_PAGES			(SVSM_MEM_ASM / PAGE_SIZE)
 
 #define SVSM_EFER			0x00001d00	/* SVME, NXE, LMA, LME */
 #define SVSM_CR0			0x80010033	/* PG, WP, NE, ET, MP, PE */
 #define SVSM_CR4			0x00000668	/* OSXMMEXCPT, OSFXSR, MCE, PAE, DE */
 
-#define SVSM_PGD_INDEX			((SVSM_GPA >> 48) & 511)
-#define SVSM_P4D_INDEX			((SVSM_GPA >> 39) & 511)
-#define SVSM_PUD_INDEX			((SVSM_GPA >> 30) & 511)
-#define SVSM_PMD_INDEX			((SVSM_GPA >> 21) & 511)
-#define SVSM_PTE_INDEX			((SVSM_GPA >> 12) & 511)
+#define SVSM_PGD_INDEX			((SVSM_GPA_ASM >> 48) & 511)
+#define SVSM_P4D_INDEX			((SVSM_GPA_ASM >> 39) & 511)
+#define SVSM_PUD_INDEX			((SVSM_GPA_ASM >> 30) & 511)
+#define SVSM_PMD_INDEX			((SVSM_GPA_ASM >> 21) & 511)
+#define SVSM_PTE_INDEX			((SVSM_GPA_ASM >> 12) & 511)
 
 #define SVSM_PGD_SIZE			0x1000000000000ULL
-#define SVSM_PGD_COUNT			(SVSM_MEM / SVSM_PGD_SIZE)
+#define SVSM_PGD_COUNT			(SVSM_MEM_ASM / SVSM_PGD_SIZE)
 #define SVSM_P4D_SIZE			0x8000000000ULL
-#define SVSM_P4D_COUNT			(SVSM_MEM / SVSM_P4D_SIZE)
+#define SVSM_P4D_COUNT			(SVSM_MEM_ASM / SVSM_P4D_SIZE)
 #define SVSM_PUD_SIZE			0x40000000ULL
-#define SVSM_PUD_COUNT			(SVSM_MEM / SVSM_P4D_SIZE)
+#define SVSM_PUD_COUNT			(SVSM_MEM_ASM / SVSM_P4D_SIZE)
 #define SVSM_PMD_SIZE			0x200000ULL
-#define SVSM_PMD_COUNT			(SVSM_MEM / SVSM_PMD_SIZE)
+#define SVSM_PMD_COUNT			(SVSM_MEM_ASM / SVSM_PMD_SIZE)
 
 #define SVSM_GDT_LIMIT			gdt64_end - gdt64 - 1
 #define SVSM_IDT_LIMIT			idt64_end - idt64 - 1
