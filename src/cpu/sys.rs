@@ -62,7 +62,7 @@ pub const PVALIDATE_CF_SET: u32 = 16;
 pub const PVALIDATE_RET_ERR: u32 = 17;
 
 /// Pvalidate a given memory region
-pub fn pvalidate(gpa: u64, page_size: u32, validation: u32) -> u32 {
+pub fn pvalidate(va: u64, page_size: u32, validation: u32) -> u32 {
     let mut ret: u32;
     let mut carry: u32;
 
@@ -72,7 +72,7 @@ pub fn pvalidate(gpa: u64, page_size: u32, validation: u32) -> u32 {
              "jnc 1f",
              "inc rcx",
              "1:",
-             in("rax") gpa, in("rcx") page_size, in("rdx") validation,
+             in("rax") va, in("rcx") page_size, in("rdx") validation,
              lateout("rax") ret, lateout("rcx") carry,
              options(nostack));
     }
@@ -94,12 +94,12 @@ pub const RMPADJUST_FAIL_PERMISSION: u32 = 2;
 pub const RMPADJUST_FAIL_SIZE_MISMATCH: u32 = 6;
 
 /// Update RMP (Reverse Map Table) with new attributes
-pub fn rmpadjust(gpa: u64, page_size: u32, attrs: u64) -> u32 {
+pub fn rmpadjust(va: u64, page_size: u32, attrs: u64) -> u32 {
     let ret: u32;
 
     unsafe {
         asm!(".byte 0xf3,0x0f,0x01,0xfe",
-             in("rax") gpa, in("rcx") page_size, in("rdx") attrs,
+             in("rax") va, in("rcx") page_size, in("rdx") attrs,
              lateout("rax") ret,
              options(nostack));
     }
