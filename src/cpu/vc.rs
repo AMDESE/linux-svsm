@@ -884,20 +884,21 @@ fn pvalidate_psc_entries(op: &mut PscOp, pvalidate_op: u32) {
     let last_entry: usize = op.header.end_entry as usize + 1;
 
     for i in first_entry..last_entry {
-        let mut gpa: u64 = GHCB_PSC_GPA!(op.entries[i].data);
+        let gpa: u64 = GHCB_PSC_GPA!(op.entries[i].data);
         let size: u32 = GHCB_PSC_SIZE!(op.entries[i].data);
 
-        let mut ret: u32 = pvalidate(gpa, size, pvalidate_op);
+        let mut va: VirtAddr = pgtable_pa_to_va(PhysAddr::new(gpa));
+        let mut ret: u32 = pvalidate(va.as_u64(), size, pvalidate_op);
         if ret == PVALIDATE_FAIL_SIZE_MISMATCH && size > 0 {
-            let gpa_end = gpa + PAGE_2MB_SIZE;
+            let va_end = va + PAGE_2MB_SIZE;
 
-            while gpa < gpa_end {
-                ret = pvalidate(gpa, 0, pvalidate_op);
+            while va < va_end {
+                ret = pvalidate(va.as_u64(), 0, pvalidate_op);
                 if ret != 0 {
                     break;
                 }
 
-                gpa += PAGE_SIZE;
+                va += PAGE_SIZE;
             }
         }
 
