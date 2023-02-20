@@ -26,13 +26,13 @@ use x86_64::structures::paging::page::Page;
 use x86_64::structures::paging::page::{PageRange, Size4KiB};
 use x86_64::structures::paging::*;
 
-static OFFSET: VirtAddr = VirtAddr::zero();
+const SVSM_GVA_OFFSET: VirtAddr = VirtAddr::new_truncate(0xffff800000000000);
 static mut P4: PageTable = PageTable::new();
 
 lazy_static! {
     static ref PGTABLE: SpinLock<OffsetPageTable<'static>> = {
         unsafe {
-            let pgt: OffsetPageTable = OffsetPageTable::new(&mut P4, OFFSET);
+            let pgt: OffsetPageTable = OffsetPageTable::new(&mut P4, SVSM_GVA_OFFSET);
             SpinLock::new(pgt)
         }
     };
@@ -272,12 +272,12 @@ pub fn pgtable_make_pages_np(va: VirtAddr, len: u64) {
 
 /// Obtain physical address (PA) of a page given its VA
 pub fn pgtable_va_to_pa(va: VirtAddr) -> PhysAddr {
-    PhysAddr::new(va.as_u64() - OFFSET.as_u64())
+    PhysAddr::new_truncate(va.as_u64() - SVSM_GVA_OFFSET.as_u64())
 }
 
 /// Obtain virtual address (VA) of a page given its PA
 pub fn pgtable_pa_to_va(pa: PhysAddr) -> VirtAddr {
-    VirtAddr::new(pa.as_u64() + OFFSET.as_u64())
+    VirtAddr::new_truncate(pa.as_u64() + SVSM_GVA_OFFSET.as_u64())
 }
 
 #[inline]

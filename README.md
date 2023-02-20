@@ -196,6 +196,8 @@ By default, SVSM lives at 512 GB (SVSM\_GPA), and has 256 MB of memory
 # make SVSM_GPA=0x90000000 SVSM_MEM=0x20000000
 ```
 
+The SVSM page table applies an offset to its virtual addresses.
+
 ## Contribution <a name="contribute"></a>
 
 Please read CONTRIBUTING.md for instructions on contribution and style.
