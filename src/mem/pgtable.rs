@@ -412,9 +412,9 @@ unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocat
     update_page_flags(Page::range(page_begin, page_end), set, clr, false);
 
     // Use the new page table
-    let cr3: PhysFrame = PhysFrame::containing_address(PhysAddr::new(
-        &P4 as *const PageTable as u64 | get_sev_encryption_mask(),
-    ));
+    let p4: VirtAddr = VirtAddr::new(&P4 as *const PageTable as u64);
+    let p4_pa: PhysAddr = PhysAddr::new(pgtable_va_to_pa(p4).as_u64() | get_sev_encryption_mask());
+    let cr3: PhysFrame = PhysFrame::containing_address(p4_pa);
     Cr3::write(cr3, Cr3Flags::empty());
 }
 
