@@ -180,14 +180,17 @@ fn read64_data_le() -> u64 {
 }
 
 fn perform_dma(dma: &mut FwCfgDma, data: *const u8, control: u32, size: usize) {
+    let dma_pa = pgtable_va_to_pa(VirtAddr::new(dma as *mut FwCfgDma as u64));
+    let dma_data_pa = pgtable_va_to_pa(VirtAddr::new(&dma.data as *const u8 as u64));
+
     assert!(size <= DMA_DATA_SIZE);
 
     dma.desc.control = u32::swap_bytes(control);
     dma.desc.length = u32::swap_bytes(size as u32);
-    dma.desc.address = u64::swap_bytes(&dma.data as *const u8 as u64);
+    dma.desc.address = u64::swap_bytes(dma_data_pa.as_u64());
 
-    let lo: u32 = LOWER_32BITS!(dma as *mut FwCfgDma as u64) as u32;
-    let hi: u32 = UPPER_32BITS!(dma as *mut FwCfgDma as u64) as u32;
+    let lo: u32 = LOWER_32BITS!(dma_pa.as_u64()) as u32;
+    let hi: u32 = UPPER_32BITS!(dma_pa.as_u64()) as u32;
     vc_outl(FW_CFG_DMA_HI, u32::swap_bytes(hi));
     vc_outl(FW_CFG_DMA_LO, u32::swap_bytes(lo));
 
