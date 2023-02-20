@@ -261,7 +261,7 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
             Ok(v) => v,
             Err(_e) => return false,
         };
-    let svsm_secrets_va: VirtAddr = pgtable_pa_to_va(PhysAddr::new(svsm_secrets_page));
+    let svsm_secrets_va: VirtAddr = get_svsm_secrets_page();
 
     // Copy the Secrets page to the BIOS Secrets page location
     let bios_secrets: *mut SnpSecrets = bios_secrets_va.as_mut_ptr();
@@ -272,8 +272,8 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
     (*bios_secrets).clear_vmpck0();
 
     // Advertise the SVSM
-    (*bios_secrets).set_svsm_base(svsm_begin);
-    (*bios_secrets).set_svsm_size(svsm_end - svsm_begin);
+    (*bios_secrets).set_svsm_base(pgtable_va_to_pa(get_svsm_begin()).as_u64());
+    (*bios_secrets).set_svsm_size(get_svsm_end().as_u64() - get_svsm_begin().as_u64());
     (*bios_secrets).set_svsm_caa(caa.as_u64());
     (*bios_secrets).set_svsm_max_version(1);
     (*bios_secrets).set_svsm_guest_vmpl(1);
@@ -292,12 +292,12 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
         Ok(v) => v,
         Err(_e) => return false,
     };
-    let svsm_cpuid_va: VirtAddr = pgtable_pa_to_va(PhysAddr::new(svsm_cpuid_page));
+    let svsm_cpuid_va: VirtAddr = get_svsm_cpuid_page();
 
     // Copy the CPUID page to the BIOS Secrets page location
     let bios_cpuid: *mut u8 = bios_cpuid_va.as_mut_ptr();
     let svsm_cpuid: *const u8 = svsm_cpuid_va.as_ptr();
-    let size: u64 = min(section.size_u64(), svsm_cpuid_page_size);
+    let size: u64 = min(section.size_u64(), get_svsm_cpuid_page_size());
     copy_nonoverlapping(svsm_cpuid, bios_cpuid, size as usize);
 
     pgtable_unmap_pages(bios_cpuid_va, section.size_u64());

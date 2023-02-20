@@ -18,7 +18,6 @@ use crate::locking::SpinLock;
 use crate::mem::ca::Ca;
 use crate::mem::pgtable_map_pages_private;
 use crate::mem::pgtable_unmap_pages;
-use crate::svsm_begin;
 use crate::*;
 
 use alloc::string::String;
@@ -254,7 +253,9 @@ unsafe fn address_valid(gfn: PhysFrame, page_size: u32) -> bool {
         gpa_end += PAGE_2MB_SIZE;
     }
 
-    if gpa.as_u64() < svsm_end && gpa_end.as_u64() > svsm_begin {
+    let svsm_begin_gpa: PhysAddr = pgtable_va_to_pa(get_svsm_begin());
+    let svsm_end_gpa: PhysAddr = pgtable_va_to_pa(get_svsm_end());
+    if gpa < svsm_end_gpa && gpa_end > svsm_begin_gpa {
         return false;
     }
 

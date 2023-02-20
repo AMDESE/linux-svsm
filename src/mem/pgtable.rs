@@ -77,9 +77,9 @@ fn remap_page(page: Page, page_type: PageType, flush: bool) {
 
         let map_pa: PhysAddr;
         if page_type == PageType::Private {
-            map_pa = PhysAddr::new(pa.as_u64() | sev_encryption_mask);
+            map_pa = PhysAddr::new(pa.as_u64() | get_sev_encryption_mask());
         } else {
-            map_pa = PhysAddr::new(pa.as_u64() & !sev_encryption_mask);
+            map_pa = PhysAddr::new(pa.as_u64() & !get_sev_encryption_mask());
         }
         let frame: PhysFrame = PhysFrame::from_start_address_unchecked(map_pa);
 
@@ -285,11 +285,6 @@ fn page_with_addr(va: VirtAddr) -> Page<Size4KiB> {
     Page::containing_address(va)
 }
 
-#[inline]
-fn page_with_addr_pa(add: u64) -> Page<Size4KiB> {
-    page_with_addr(pgtable_pa_to_va(PhysAddr::new(add)))
-}
-
 /// Determine if a current mapping matches the specified frame and flags values
 ///
 /// When comparing the specified flags, the ACCESSED and DIRTY are ignored.
@@ -329,7 +324,7 @@ unsafe fn __map_pages(
 
     let pa_mod: u64 = match page_type {
         PageType::Shared => 0,
-        PageType::Private => sev_encryption_mask,
+        PageType::Private => get_sev_encryption_mask(),
     };
 
     while map < map_end {
@@ -367,12 +362,12 @@ unsafe fn __map_pages(
 }
 
 unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocator) {
-    let mut pa: PhysAddr = PhysAddr::new(svsm_begin);
-    let pa_end: PhysAddr = PhysAddr::new(svsm_end);
+    let mut va: VirtAddr = get_svsm_begin();
+    let va_end: VirtAddr = get_svsm_end();
 
-    while pa < pa_end {
-        let va: VirtAddr = pgtable_pa_to_va(pa);
-        let private_pa: PhysAddr = PhysAddr::new(pa.as_u64() | sev_encryption_mask);
+    while va < va_end {
+        let pa: PhysAddr = pgtable_va_to_pa(va);
+        let private_pa: PhysAddr = PhysAddr::new(pa.as_u64() | get_sev_encryption_mask());
 
         let page: Page<Size4KiB> = page_with_addr(va);
         let frame: PhysFrame = PhysFrame::from_start_address_unchecked(private_pa);
@@ -384,11 +379,11 @@ unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocat
             vc_terminate_ghcb_general();
         }
 
-        pa += PAGE_SIZE;
+        va += PAGE_SIZE;
     }
 
     // Change the early GHCB to shared for use before a new one is created
-    let va: VirtAddr = pgtable_pa_to_va(PhysAddr::new(early_ghcb));
+    let va: VirtAddr = get_early_ghcb();
     let page: Page<Size4KiB> = page_with_addr(va);
     remap_page(page, PageType::Shared, false);
 
@@ -396,29 +391,29 @@ unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocat
     let mut set: PageTableFlags = PageTableFlags::NO_EXECUTE;
     let mut clr: PageTableFlags = PageTableFlags::empty();
 
-    let mut page_begin: Page<Size4KiB> = page_with_addr_pa(svsm_sbss);
-    let mut page_end: Page<Size4KiB> = page_with_addr_pa(svsm_ebss);
+    let mut page_begin: Page<Size4KiB> = page_with_addr(get_svsm_sbss());
+    let mut page_end: Page<Size4KiB> = page_with_addr(get_svsm_ebss());
     update_page_flags(Page::range(page_begin, page_end), set, clr, false);
 
-    page_begin = page_with_addr_pa(svsm_sdata);
-    page_end = page_with_addr_pa(svsm_edata);
+    page_begin = page_with_addr(get_svsm_sdata());
+    page_end = page_with_addr(get_svsm_edata());
     update_page_flags(Page::range(page_begin, page_end), set, clr, false);
 
-    page_begin = page_with_addr_pa(dyn_mem_begin);
-    page_end = page_with_addr_pa(dyn_mem_end);
+    page_begin = page_with_addr(get_dyn_mem_begin());
+    page_end = page_with_addr(get_dyn_mem_end());
     update_page_flags(Page::range(page_begin, page_end), set, clr, false);
 
     // Mark the BSP stack guard page as non-present
     set = PageTableFlags::empty();
     clr = PageTableFlags::PRESENT;
 
-    page_begin = page_with_addr_pa(guard_page);
+    page_begin = page_with_addr(get_guard_page());
     page_end = page_begin + 1;
     update_page_flags(Page::range(page_begin, page_end), set, clr, false);
 
     // Use the new page table
     let cr3: PhysFrame = PhysFrame::containing_address(PhysAddr::new(
-        &P4 as *const PageTable as u64 | sev_encryption_mask,
+        &P4 as *const PageTable as u64 | get_sev_encryption_mask(),
     ));
     Cr3::write(cr3, Cr3Flags::empty());
 }

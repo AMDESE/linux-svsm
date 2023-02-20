@@ -117,7 +117,7 @@ fn alloc_vmsa() -> PhysFrame {
 }
 
 unsafe fn __create_bios_vmsa(vmsa_va: VirtAddr) {
-    let bsp_page_va: VirtAddr = pgtable_pa_to_va(PhysAddr::new(bios_vmsa_page));
+    let bsp_page_va: VirtAddr = get_bios_vmsa_page();
 
     let vmsa: *mut Vmsa = vmsa_va.as_mut_ptr();
     let bsp_page: *const Vmsa = bsp_page_va.as_ptr();
@@ -164,19 +164,19 @@ fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
     let tss: VirtAddr = tss_init_for(for_id);
 
     unsafe {
-        (*vmsa).set_cs_selector(gdt64_kernel_cs as u16);
+        (*vmsa).set_cs_selector(get_gdt64_kernel_cs() as u16);
         (*vmsa).set_cs_rtype(SVSM_CS_TYPE);
         (*vmsa).set_cs_limit(SVSM_CS_LIMIT);
         (*vmsa).set_cs_base(SVSM_CS_BASE);
 
-        (*vmsa).set_tr_selector(gdt64_tss as u16);
+        (*vmsa).set_tr_selector(get_gdt64_tss() as u16);
         (*vmsa).set_tr_rtype(SVSM_TSS_TYPE);
         (*vmsa).set_tr_limit(size_of::<TaskStateSegment>() as u32 - 1);
         (*vmsa).set_tr_base(tss.as_u64());
 
         (*vmsa).set_gs_base(gs.as_u64());
 
-        (*vmsa).set_rip(cpu_start);
+        (*vmsa).set_rip(get_cpu_start());
 
         (*vmsa).set_gdtr_limit(gdtr.limit as u32);
         (*vmsa).set_gdtr_base(gdtr.base.as_u64());
@@ -216,9 +216,7 @@ fn ap_start(cpu_id: usize) -> bool {
     }
 
     let stack: VirtAddr = mem_create_stack(SVSM_STACK_PAGES, false);
-    unsafe {
-        cpu_stack = stack.as_u64();
-    }
+    set_cpu_stack(stack.as_u64());
 
     unsafe {
         PERCPU.set_vmsa_for(pgtable_va_to_pa(vmsa), VMPL::Vmpl0, cpu_id);
@@ -336,8 +334,8 @@ pub fn smp_get_cpu_id(apic_id: u32) -> Option<usize> {
 }
 
 unsafe fn __smp_init() {
-    hl_main = ap_entry as u64;
-    cpu_mode = 1;
+    set_hl_main(ap_entry as u64);
+    set_cpu_mode(1);
 
     let count: usize = percpu_count();
     let aux: usize = count - 1;

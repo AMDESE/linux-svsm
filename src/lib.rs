@@ -43,31 +43,6 @@ use crate::vmsa::*;
 
 use core::panic::PanicInfo;
 
-extern "C" {
-    static sev_encryption_mask: u64;
-    static svsm_begin: u64;
-    static svsm_end: u64;
-    static dyn_mem_begin: u64;
-    static dyn_mem_end: u64;
-    static early_ghcb: u64;
-    static early_tss: u64;
-    static svsm_sbss: u64;
-    static svsm_ebss: u64;
-    static svsm_sdata: u64;
-    static svsm_edata: u64;
-    static guard_page: u64;
-    static mut hl_main: u64;
-    static mut cpu_mode: u64;
-    static mut cpu_stack: u64;
-    static cpu_start: u64;
-    static svsm_secrets_page: u64;
-    static svsm_cpuid_page: u64;
-    static svsm_cpuid_page_size: u64;
-    static bios_vmsa_page: u64;
-    static gdt64_kernel_cs: u64;
-    static gdt64_tss: u64;
-}
-
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
     prints!("PANIC!\n{}\nPANIC!\n", panic_info);
@@ -84,26 +59,22 @@ fn check_vmpl_level() {
     //
     // Attempt to clear the VMPL1 attributes of the early GHCB page.
 
-    unsafe {
-        let ret: u32 = rmpadjust(svsm_begin, RMP_4K, VMPL::Vmpl1 as u64);
-        if ret != 0 {
-            vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_NOT_VMPL0);
-        }
+    let ret: u32 = rmpadjust(get_svsm_begin().as_u64(), RMP_4K, VMPL::Vmpl1 as u64);
+    if ret != 0 {
+        vc_terminate(SVSM_REASON_CODE_SET, SVSM_TERM_NOT_VMPL0);
     }
 }
 
 /// Check addresses are appropriately aligned and within boundaries
 fn check_svsm_address() {
-    unsafe {
-        let total_size: u64 = svsm_end - svsm_begin;
-        if !PAGE_2MB_ALIGNED!(svsm_begin) || !PAGE_2MB_ALIGNED!(total_size) {
-            vc_terminate_svsm_general();
-        }
-        // svsm_end is SVSM_GVA + SVSM_MEM. dyn_mem_begin is calculated based on
-        // edata, so make sure it is within boundaries
-        if svsm_end < dyn_mem_begin {
-            vc_terminate_svsm_general();
-        }
+    let total_size: u64 = get_svsm_end().as_u64() - get_svsm_begin().as_u64();
+    if !PAGE_2MB_ALIGNED!(get_svsm_begin().as_u64()) || !PAGE_2MB_ALIGNED!(total_size) {
+        vc_terminate_svsm_general();
+    }
+    // svsm_end is SVSM_GVA + SVSM_MEM. dyn_mem_begin is calculated based on
+    // edata, so make sure it is within boundaries
+    if get_svsm_end() < get_dyn_mem_begin() {
+        vc_terminate_svsm_general();
     }
 }
 

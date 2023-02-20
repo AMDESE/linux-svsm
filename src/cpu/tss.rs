@@ -45,8 +45,8 @@ unsafe fn __tss_init() {
     let tss_base: u64 = tss.as_u64();
     let tss_limit: u64 = (size_of::<TaskStateSegment>() - 1) as u64;
 
-    let gdt_tss0: *mut u64 = early_tss as *mut u64;
-    let gdt_tss1: *mut u64 = (early_tss + 8) as *mut u64;
+    let gdt_tss0: *mut u64 = get_early_tss().as_u64() as *mut u64;
+    let gdt_tss1: *mut u64 = (get_early_tss().as_u64() + 8) as *mut u64;
 
     // Update existing TSS entry in the GDT.
 
@@ -59,7 +59,7 @@ unsafe fn __tss_init() {
 
     PERCPU.set_tss(tss);
 
-    load_tss(SegmentSelector(gdt64_tss as u16));
+    load_tss(SegmentSelector(get_gdt64_tss() as u16));
 }
 
 ///

@@ -405,8 +405,7 @@ pub fn percpu_count() -> usize {
 
 unsafe fn __percpu_init(init_frame: PhysFrame, init_count: u64) -> u64 {
     // Place BSP early GHCB into per-CPU data for use in VC
-    let va: VirtAddr;
-    va = pgtable_pa_to_va(PhysAddr::new(early_ghcb));
+    let va: VirtAddr = get_early_ghcb();
 
     PERCPU.set_ghcb(va);
 

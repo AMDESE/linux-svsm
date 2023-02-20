@@ -7,6 +7,7 @@
  */
 
 use crate::BIT;
+use x86_64::addr::VirtAddr;
 
 // GHCB standard termination constants
 /// 0
@@ -116,3 +117,82 @@ pub const CAA_MAP_SIZE: u64 = 8;
 
 /// PAGE_SIZE
 pub const VMSA_MAP_SIZE: u64 = PAGE_SIZE;
+
+//
+// External symbol support:
+//   To better control the expected type of value in the external symbol,
+//   create getter and, optionally, setter functions for accessing the
+//   sysmbols.
+//
+macro_rules! extern_symbol_u64_ro {
+    ($name: ident, $T: ty) => {
+        paste::paste! {
+            extern "C" {
+                static $name: $T;
+            }
+            pub fn [<get_ $name>]() -> u64 {
+                unsafe {
+                    $name as u64
+                }
+            }
+        }
+    };
+}
+
+macro_rules! extern_symbol_virtaddr_ro {
+    ($name: ident, $T: ty) => {
+        paste::paste! {
+            extern "C" {
+                static $name: $T;
+            }
+            pub fn [<get_ $name>]() -> VirtAddr {
+                unsafe {
+                    VirtAddr::new($name as u64)
+                }
+            }
+        }
+    };
+}
+
+macro_rules! extern_symbol_u64_rw {
+    ($name: ident, $T1: ty) => {
+        paste::paste! {
+            extern "C" {
+                static mut $name: $T1;
+            }
+            pub fn [<get_ $name>]() -> u64 {
+                unsafe {
+                    $name as u64
+                }
+            }
+            pub fn [<set_ $name>](value: u64) {
+                unsafe {
+                    $name = value;
+                }
+            }
+        }
+    };
+}
+
+extern_symbol_u64_ro!(sev_encryption_mask, u64);
+extern_symbol_virtaddr_ro!(svsm_begin, u64);
+extern_symbol_virtaddr_ro!(svsm_end, u64);
+extern_symbol_virtaddr_ro!(svsm_sbss, u64);
+extern_symbol_virtaddr_ro!(svsm_ebss, u64);
+extern_symbol_virtaddr_ro!(svsm_sdata, u64);
+extern_symbol_virtaddr_ro!(svsm_edata, u64);
+extern_symbol_virtaddr_ro!(svsm_secrets_page, u64);
+extern_symbol_virtaddr_ro!(svsm_cpuid_page, u64);
+extern_symbol_u64_ro!(svsm_cpuid_page_size, u64);
+extern_symbol_virtaddr_ro!(bios_vmsa_page, u64);
+extern_symbol_virtaddr_ro!(guard_page, u64);
+extern_symbol_virtaddr_ro!(early_ghcb, u64);
+extern_symbol_virtaddr_ro!(early_tss, u64);
+extern_symbol_u64_ro!(gdt64_tss, u64);
+extern_symbol_u64_ro!(gdt64_kernel_cs, u64);
+extern_symbol_virtaddr_ro!(dyn_mem_begin, u64);
+extern_symbol_virtaddr_ro!(dyn_mem_end, u64);
+extern_symbol_u64_rw!(hl_main, u64);
+extern_symbol_u64_rw!(cpu_mode, u64);
+extern_symbol_u64_rw!(cpu_stack, u64);
+extern_symbol_u64_ro!(cpu_start, u64);

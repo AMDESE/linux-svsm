@@ -6,8 +6,6 @@
  */
 
 use crate::cpu::vc_early_make_pages_private;
-use crate::dyn_mem_begin;
-use crate::dyn_mem_end;
 use crate::globals::*;
 use crate::mem::{pgtable_pa_to_va, pgtable_va_to_pa};
 use crate::pgtable::*;
@@ -1136,14 +1134,15 @@ fn root_mem_init(pstart: PhysAddr, vstart: VirtAddr, page_count: usize) {
 }
 
 unsafe fn __mem_init() {
-    let mem_begin: PhysFrame = PhysFrame::containing_address(PhysAddr::new(dyn_mem_begin));
-    let mem_end: PhysFrame = PhysFrame::containing_address(PhysAddr::new(dyn_mem_end));
+    let pstart: PhysAddr = pgtable_va_to_pa(get_dyn_mem_begin());
+    let pend: PhysAddr = pgtable_va_to_pa(get_dyn_mem_end());
+
+    let mem_begin: PhysFrame = PhysFrame::containing_address(pstart);
+    let mem_end: PhysFrame = PhysFrame::containing_address(pend);
 
     vc_early_make_pages_private(mem_begin, mem_end);
 
-    let pstart: PhysAddr = PhysAddr::new(dyn_mem_begin);
-    let pend: PhysAddr = PhysAddr::new(dyn_mem_end);
-    let vstart: VirtAddr = pgtable_pa_to_va(pstart);
+    let vstart: VirtAddr = get_dyn_mem_begin();
     let page_count: usize = ((pend.as_u64() - pstart.as_u64()) / PAGE_SIZE) as usize;
 
     root_mem_init(pstart, vstart, page_count);

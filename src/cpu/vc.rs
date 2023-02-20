@@ -33,7 +33,6 @@ use core::cmp::min;
 use crate::cpu::cpuid::CpuidPage;
 use crate::cpu::cpuid::CpuidPageEntry;
 use crate::cpu::cpuid::CPUID_COUNT_MAX;
-use crate::svsm_cpuid_page;
 
 use x86_64::registers::control::Cr4;
 use x86_64::registers::control::Cr4Flags;
@@ -453,7 +452,7 @@ fn cpuid_calc_xsave_size(features: u64, compact: bool) -> u32 {
     let mut xsave_size: u32 = 0;
 
     unsafe {
-        let cpuid_page: *mut CpuidPage = svsm_cpuid_page as *mut CpuidPage;
+        let cpuid_page: *mut CpuidPage = get_svsm_cpuid_page().as_mut_ptr() as *mut CpuidPage;
 
         let count: usize = min(CPUID_COUNT_MAX, (*cpuid_page).count() as usize);
         for i in 0..count {
@@ -500,7 +499,7 @@ fn cpuid_find_entry(leaf: u32, subleaf: u32) -> Option<CpuidPageEntry> {
     let subleaf_used: bool = cpuid_is_subleaf_used(leaf);
 
     unsafe {
-        let cpuid_page: *mut CpuidPage = svsm_cpuid_page as *mut CpuidPage;
+        let cpuid_page: *mut CpuidPage = get_svsm_cpuid_page().as_mut_ptr() as *mut CpuidPage;
 
         let count: usize = min(CPUID_COUNT_MAX, (*cpuid_page).count() as usize);
         for i in 0..count {
@@ -991,22 +990,14 @@ pub fn vc_make_page_private(frame: PhysFrame) {
 }
 
 pub fn vc_early_make_pages_private(begin: PhysFrame, end: PhysFrame) {
-    let ghcb: *mut Ghcb;
-
-    unsafe {
-        ghcb = early_ghcb as *mut Ghcb;
-    }
+    let ghcb: *mut Ghcb = get_early_ghcb().as_mut_ptr() as *mut Ghcb;
 
     perform_page_state_change(ghcb, begin, end, PSC_PRIVATE);
 }
 
 pub fn vc_init() {
-    let ghcb: PhysAddr;
-
-    unsafe {
-        ghcb = PhysAddr::new(early_ghcb);
-    }
+    let ghcb_pa: PhysAddr = pgtable_va_to_pa(get_early_ghcb());
 
     vc_establish_protocol();
-    vc_register_ghcb(ghcb);
+    vc_register_ghcb(ghcb_pa);
 }
