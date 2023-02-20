@@ -14,6 +14,7 @@ use crate::globals::*;
 use crate::mem::mem_allocate_frame;
 use crate::mem::pgtable_make_pages_shared;
 use crate::mem::pgtable_pa_to_va;
+use crate::mem::pgtable_va_to_pa;
 use crate::util::util::memset;
 use crate::BIT;
 use crate::STATIC_ASSERT;
@@ -102,7 +103,8 @@ impl Ghcb {
             copy_nonoverlapping(data, &mut self.shared_buffer as *mut u8, len);
         }
 
-        self.set_sw_scratch(&self.shared_buffer as *const u8 as u64);
+        let va: VirtAddr = VirtAddr::new_truncate(&self.shared_buffer as *const u8 as u64);
+        self.set_sw_scratch(pgtable_va_to_pa(va).as_u64());
     }
 
     pub fn version(&mut self) -> u16 {
