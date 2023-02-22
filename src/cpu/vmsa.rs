@@ -338,10 +338,10 @@ unsafe fn update_vmsa_efer_svme(va: VirtAddr, svme: bool) -> bool {
     xchg_efer == cur_efer
 }
 
-pub fn clr_vmsa_efer_svme(va: VirtAddr) -> bool {
+pub fn vmsa_clear_efer_svme(va: VirtAddr) -> bool {
     unsafe { update_vmsa_efer_svme(va, false) }
 }
 
-pub fn set_vmsa_efer_svme(va: VirtAddr) -> bool {
+pub fn vmsa_set_efer_svme(va: VirtAddr) -> bool {
     unsafe { update_vmsa_efer_svme(va, true) }
 }

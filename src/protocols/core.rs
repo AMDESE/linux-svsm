@@ -221,7 +221,7 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
     // Set EFER.SVME to 0 to ensure the VMSA is not in-use and can't be used
     // by the hypervisor to run the vCPU while it is being deleted.
     //
-    if !clr_vmsa_efer_svme(va) {
+    if !vmsa_clear_efer_svme(va) {
         pgtable_unmap_pages(va, VMSA_MAP_SIZE);
         return;
     }

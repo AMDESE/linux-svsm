@@ -71,7 +71,7 @@ fn unmap_guest_input(ca_va: VirtAddr, vmsa_va: VirtAddr) {
     //
     // Set EFER.SVME to 1 to allow the VMSA to be run by the hypervisor.
     //
-    set_vmsa_efer_svme(vmsa_va);
+    vmsa_set_efer_svme(vmsa_va);
 
     unmap_vmsa(vmsa_va);
     unmap_ca(ca_va);
@@ -97,7 +97,7 @@ fn map_guest_input(vmpl: VMPL) -> Result<(VirtAddr, VirtAddr), String> {
     // Set EFER.SVME to 0 to prevent the hypervisor from trying to
     // run the vCPU while a request is being handled.
     //
-    if !clr_vmsa_efer_svme(vmsa_va) {
+    if !vmsa_clear_efer_svme(vmsa_va) {
         unmap_vmsa(vmsa_va);
         unmap_ca(ca_va);
 
