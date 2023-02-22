@@ -7,7 +7,7 @@
  */
 
 use crate::protocols::error_codes::*;
-use crate::vmsa_list::*;
+use crate::vmsa_list::VMSA_LIST;
 use crate::*;
 
 use core::mem::size_of;
@@ -128,7 +128,7 @@ unsafe fn address_valid(gfn: PhysFrame, page_size: u32) -> bool {
 
     // Check VMSAs
     while gpa < gpa_end {
-        if vmsa_page(gpa) {
+        if VMSA_LIST.contains(gpa) {
             return false;
         }
 
@@ -195,11 +195,11 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
         return;
     }
 
-    if !vmsa_page(gpa) {
+    if !VMSA_LIST.contains(gpa) {
         return;
     }
 
-    let apic_id: u32 = match vmsa_to_apic_id(gpa) {
+    let apic_id: u32 = match VMSA_LIST.get_apic_id(gpa) {
         Some(i) => i,
         None => return,
     };
@@ -235,7 +235,7 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
         PERCPU.set_vmsa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
         PERCPU.set_caa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
     }
-    if !del_vmsa(gpa) {
+    if !VMSA_LIST.remove(gpa) {
         return;
     }
 
@@ -304,9 +304,7 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
             break;
         }
 
-        if !add_vmsa(create_vmsa_gpa, apic_id) {
-            break;
-        }
+        VMSA_LIST.push(create_vmsa_gpa, apic_id);
 
         let cpu_id: usize = match smp_get_cpu_id(apic_id) {
             Some(c) => c,

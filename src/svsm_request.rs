@@ -109,7 +109,7 @@ fn map_guest_input(vmpl: VMPL) -> Result<(VirtAddr, VirtAddr), String> {
 }
 
 pub fn svsm_request_add_init_vmsa(vmsa_pa: PhysAddr, apic_id: u32) {
-    add_vmsa(vmsa_pa, apic_id);
+    VMSA_LIST.push(vmsa_pa, apic_id);
 }
 
 /// Process SVSM requests
