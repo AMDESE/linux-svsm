@@ -20,3 +20,5 @@ pub use crate::protocols::services_manifest::*;
 
 /// 0
 pub const SVSM_CORE_PROTOCOL: u32 = ProtocolId::ProtocolId0 as u32;
+/// 1
+pub const SVSM_ATTESTATION_PROTOCOL: u32 = ProtocolId::ProtocolId1 as u32;

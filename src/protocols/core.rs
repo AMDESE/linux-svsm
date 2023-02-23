@@ -42,10 +42,14 @@ impl VersionInfo {
     funcs!(max, u32);
 }
 
-static PROTOCOL_INFO: [VersionInfo; 1] = [VersionInfo { min: 1, max: 1 }];
+static PROTOCOL_INFO: [VersionInfo; 2] = [
+    VersionInfo { min: 1, max: 1 },
+    VersionInfo { min: 1, max: 1 },
+];
 
 pub enum ProtocolId {
     ProtocolId0,
+    ProtocolId1,
 
     MaxProtocolId,
 }

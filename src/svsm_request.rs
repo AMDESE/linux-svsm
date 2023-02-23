@@ -28,6 +28,7 @@ unsafe fn handle_request(vmsa: *mut Vmsa) {
 
     match protocol {
         SVSM_CORE_PROTOCOL => core_handle_request(callid, vmsa),
+        SVSM_ATTESTATION_PROTOCOL => attestation_handle_request(callid, vmsa),
         _ => (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_PROTOCOL),
     }
 }
