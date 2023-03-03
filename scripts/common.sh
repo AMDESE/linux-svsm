@@ -61,7 +61,7 @@ build_kernel()
 				run_cmd git checkout current/${BRANCH}
 				COMMIT=$(git log --format="%h" -1 HEAD)
 
-				run_cmd "cp /boot/config-$(uname -r) .config"
+				run_cmd "cp /boot/config-$(uname -r) .config || zcat /proc/config.gz > .config"
 				run_cmd ./scripts/config --set-str LOCALVERSION "$VER-$COMMIT"
 				run_cmd ./scripts/config --disable LOCALVERSION_AUTO
 				run_cmd ./scripts/config --enable  DEBUG_INFO
