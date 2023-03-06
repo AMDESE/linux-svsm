@@ -243,14 +243,12 @@ pub fn smp_run_bios_vmpl() -> bool {
             return false;
         }
 
-        let vmsa_va: VirtAddr = match pgtable_map_pages_private(vmsa_pa, PAGE_SIZE) {
+        let vmsa_map: MapGuard = match MapGuard::new_private(vmsa_pa, PAGE_SIZE) {
             Ok(r) => r,
             Err(_e) => return false,
         };
 
-        vc_ap_create(vmsa_va, PERCPU.apic_id());
-
-        pgtable_unmap_pages(vmsa_va, PAGE_SIZE);
+        vc_ap_create(vmsa_map.va(), PERCPU.apic_id());
     }
 
     true
