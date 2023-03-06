@@ -41,8 +41,9 @@ doc: .prereq
 svsm.bin: svsm.bin.elf
 	objcopy -g -O binary $< $@
 
+# "-Wl,-u,malloc" prevents the linker from removing the wrapper.rs symbols
 svsm.bin.elf: $(OBJS) src/start/svsm.lds
-	$(GCC) $(LD_FLAGS) -o $@ $(OBJS)
+	$(GCC) $(LD_FLAGS) -o $@ $(OBJS) -Wl,-u,malloc
 
 %.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/protocols/*.rs src/util/*.rs
 	@xargo build --features $(FEATURES)

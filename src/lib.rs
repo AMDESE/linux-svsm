@@ -33,6 +33,8 @@ pub mod svsm_request;
 pub mod util;
 /// Handle the list of VMSA pages
 pub mod vmsa_list;
+/// Wrappers for external dependencies
+pub mod wrapper;
 
 extern crate alloc;
 
