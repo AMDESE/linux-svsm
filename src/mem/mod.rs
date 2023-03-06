@@ -14,6 +14,8 @@ pub mod ca;
 pub mod fwcfg;
 /// Guest Host Communication Block support
 pub mod ghcb;
+/// MapGuard
+pub mod map_guard;
 /// Page Table and its related operations
 pub mod pgtable;
 
@@ -28,6 +30,8 @@ pub use crate::mem::pgtable::{
     pgtable_pa_to_va, pgtable_print_pte_pa, pgtable_print_pte_va, pgtable_unmap_pages,
     pgtable_va_to_pa,
 };
+
+pub use crate::mem::map_guard::MapGuard;
 
 pub use crate::mem::ghcb::ghcb_init;
 
