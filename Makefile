@@ -32,10 +32,11 @@ LDS_FLAGS	+= -DSVSM_GPA="$(SVSM_GPA)"
 LDS_FLAGS	+= -DSVSM_MEM="$(SVSM_MEM)"
 
 EXT_LIBS := external/libcrt/libcrt.a
+EXT_LIBS += external/openssl/libcrypto.a
 
-.PHONY: all doc prereq clean clean_all superclean libcrt
+.PHONY: all doc prereq clean clean_all superclean libcrt libcrypto
 
-all: .prereq libcrt svsm.bin
+all: .prereq libcrt libcrypto svsm.bin
 
 doc: .prereq
 	cargo doc --open
@@ -44,6 +45,11 @@ external/libcrt/libcrt.a: libcrt
 
 libcrt:
 	$(MAKE) -C external/libcrt
+
+external/openssl/libcrypto.a: libcrypto
+
+libcrypto: external/openssl/Makefile libcrt
+	$(MAKE) -C external/openssl -j$$(nproc)
 
 svsm.bin: svsm.bin.elf
 	objcopy -g -O binary $< $@
@@ -140,6 +146,7 @@ clean:
 
 clean_all: clean
 	$(MAKE) -C external/libcrt clean
+	$(MAKE) -C external/openssl clean
 
 superclean: clean_all
 	rm -f .prereq
