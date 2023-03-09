@@ -204,12 +204,17 @@ Please read CONTRIBUTING.md for instructions on contribution and style.
 
 ## Authors and License <a name="authors"></a>
 
-The main authors and maintainers of this software are:
+The original authors and maintainers of this software are:
 
 - [Thomas Lendacky](https://github.com/tlendacky)
 - [Carlos Bilbao](https://github.com/Zildj1an)
 
-They will act as reviewers for future contributions.
+and they will act as reviewers for future contributions.
+
+Other developers have made substantial contributions to this project, to
+obtain the full list, please refer to the [Contributors](https://github.com/AMDESE/linux-svsm/graphs/contributors)
+page or review the authorship information in the project's source code
+headers.
 
 Linux SVSM is distributed under the MIT license. For more information, read
 file LICENSE. To obtain information about the crates that Linux SVSM
