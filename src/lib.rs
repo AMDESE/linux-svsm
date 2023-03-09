@@ -25,10 +25,14 @@ pub mod cpu;
 pub mod globals;
 /// Prepare page table, handle memory (de)allocations
 pub mod mem;
+/// Implementation of SVSM protocols and calls
+pub mod protocols;
 /// Handle requests from the SVSM guest
 pub mod svsm_request;
 /// Auxiliary functions and macros
 pub mod util;
+/// Handle the list of VMSA pages
+pub mod vmsa_list;
 
 extern crate alloc;
 

@@ -6,13 +6,16 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
+use crate::cpu::sys::EFER_SVME;
 use crate::globals::*;
 use crate::STATIC_ASSERT;
-use crate::{funcs, BIT};
+use crate::{cmpxchg, funcs, BARRIER, BIT};
 
 use core::mem::size_of;
 use memoffset::offset_of;
 use paste::paste;
+use x86_64::addr::VirtAddr;
+use x86_64::instructions::tlb::flush;
 
 // Sev Features for guest
 // Secure Nested Paging is active
@@ -312,4 +315,33 @@ impl Vmsa {
 #[allow(dead_code)]
 fn vmsa_size_check() {
     STATIC_ASSERT!(size_of::<Vmsa>() == PAGE_SIZE as usize);
+}
+
+unsafe fn update_vmsa_efer_svme(va: VirtAddr, svme: bool) -> bool {
+    flush(va);
+    BARRIER!();
+
+    let vmsa: *mut Vmsa = va.as_mut_ptr();
+    let efer_va: u64 = va.as_u64() + (*vmsa).efer_offset();
+
+    let cur_efer: u64 = (*vmsa).efer();
+    let new_efer: u64 = match svme {
+        true => cur_efer | EFER_SVME,
+        false => cur_efer & !EFER_SVME,
+    };
+
+    let xchg_efer: u64 = cmpxchg(cur_efer, new_efer, efer_va);
+    BARRIER!();
+
+    // If the cmpxchg() succeeds, xchg_efer will have the cur_efer value,
+    // otherwise, it will have the new_efer value.
+    xchg_efer == cur_efer
+}
+
+pub fn vmsa_clear_efer_svme(va: VirtAddr) -> bool {
+    unsafe { update_vmsa_efer_svme(va, false) }
+}
+
+pub fn vmsa_set_efer_svme(va: VirtAddr) -> bool {
+    unsafe { update_vmsa_efer_svme(va, true) }
 }

@@ -9,6 +9,9 @@
 use crate::BIT;
 use core::arch::asm;
 
+/// Bit 12
+pub const EFER_SVME: u64 = BIT!(12);
+
 /// Read MSR
 pub fn rdmsr(msr: u32) -> u64 {
     let lo: u32;
