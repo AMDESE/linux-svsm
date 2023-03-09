@@ -259,7 +259,7 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     let vmsa: VirtAddr = create_bios_vmsa();
     let vmsa_pa: PhysAddr = pgtable_va_to_pa(vmsa);
 
-    let caa: VirtAddr = match pgtable_map_pages_private(caa_pa, CAA_MAP_SIZE) {
+    let caa: MapGuard = match MapGuard::new_private(caa_pa, CAA_MAP_SIZE) {
         Ok(c) => c,
         Err(_e) => return false,
     };
@@ -279,7 +279,7 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     //
     // The lower VMPL has not been run, yet, so no TLB flushing is needed.
     //
-    let ret: u32 = rmpadjust(caa.as_u64(), RMP_4K, VMPL_RWX | VMPL::Vmpl1 as u64);
+    let ret: u32 = rmpadjust(caa.va().as_u64(), RMP_4K, VMPL_RWX | VMPL::Vmpl1 as u64);
     if ret != 0 {
         return false;
     }
@@ -292,7 +292,7 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     let vmin: u64 = VMPL::Vmpl2 as u64;
     let vmax: u64 = VMPL::VmplMax as u64;
     for i in vmin..vmax {
-        let ret: u32 = rmpadjust(caa.as_u64(), RMP_4K, i);
+        let ret: u32 = rmpadjust(caa.va().as_u64(), RMP_4K, i);
         if ret != 0 {
             return false;
         }
@@ -312,7 +312,6 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
         svsm_request_add_init_vmsa(vmsa_pa, PERCPU.apic_id());
     }
 
-    pgtable_unmap_pages(caa, CAA_MAP_SIZE);
     pgtable_unmap_pages(vmsa, PAGE_SIZE);
 
     true
