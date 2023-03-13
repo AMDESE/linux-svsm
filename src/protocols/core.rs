@@ -187,6 +187,27 @@ unsafe fn revoke_vmpl_access(va: VirtAddr, page_size: u32) -> u32 {
     return 0;
 }
 
+/// Turn the page at `gpa` to a non-VMSA page
+unsafe fn demote_vmsa_page(gpa: PhysAddr) -> Result<(), u64> {
+    let map: MapGuard = match MapGuard::new_private(gpa, VMSA_MAP_SIZE) {
+        Ok(m) => m,
+        Err(_e) => return Err(SVSM_ERR_INVALID_PARAMETER),
+    };
+
+    //
+    // Set EFER.SVME to 0 to ensure the VMSA is not in-use and can't be used
+    // by the hypervisor to run the vCPU while it is being deleted.
+    //
+    if !vmsa_clear_efer_svme(map.va()) {
+        // EFER.SVME must be set to zero
+        return Err(SVSM_ERR_PROTOCOL_FAIL_INUSE);
+    }
+
+    // Turn the page into a non-VMSA page
+    grant_vmpl_access(map.va(), RMP_4K, VMPL::Vmpl1 as u8);
+    Ok(())
+}
+
 unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rax(SVSM_ERR_INVALID_PARAMETER);
 
@@ -209,33 +230,17 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
         None => return,
     };
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, VMSA_MAP_SIZE) {
-        Ok(v) => v,
-        Err(_e) => return,
-    };
-
-    // EFER.SVME must be set to zero
-    (*vmsa).set_rax(SVSM_ERR_PROTOCOL_FAIL_INUSE);
-
-    //
-    // Set EFER.SVME to 0 to ensure the VMSA is not in-use and can't be used
-    // by the hypervisor to run the vCPU while it is being deleted.
-    //
-    if !vmsa_clear_efer_svme(va) {
-        pgtable_unmap_pages(va, VMSA_MAP_SIZE);
+    if let Err(code) = demote_vmsa_page(gpa) {
+        (*vmsa).set_rax(code);
         return;
-    }
-
-    // Turn the page into a non-VMSA page
-    grant_vmpl_access(va, RMP_4K, VMPL::Vmpl1 as u8);
-
-    pgtable_unmap_pages(va, VMSA_MAP_SIZE);
+    };
 
     if PERCPU.vmsa_for(VMPL::Vmpl1, cpu_id) == gpa {
         PERCPU.set_vmsa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
         PERCPU.set_caa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
     }
     if !VMSA_LIST.remove(gpa) {
+        (*vmsa).set_rax(SVSM_ERR_PROTOCOL_FAIL_INUSE);
         return;
     }
 
