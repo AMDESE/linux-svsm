@@ -35,4 +35,4 @@ pub use crate::mem::map_guard::MapGuard;
 
 pub use crate::mem::ghcb::ghcb_init;
 
-pub use crate::mem::fwcfg::{fwcfg_init, fwcfg_map_bios};
+pub use crate::mem::fwcfg::{fwcfg_get_bios_area, fwcfg_init};

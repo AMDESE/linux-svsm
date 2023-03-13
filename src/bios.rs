@@ -346,14 +346,18 @@ fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
     true
 }
 
-/// Locate BIOS, prepare it, advertise SVSM presence and run BIOS
-pub fn start_bios() {
-    let (bios_va, bios_size) = match fwcfg_map_bios() {
-        Some(t) => t,
+fn prepare_bios() {
+    let (bios_pa, bios_size) = match fwcfg_get_bios_area() {
+        Some(r) => r,
         None => vc_terminate_svsm_fwcfg(),
     };
 
-    let mut bios_info: BiosInfo = BiosInfo::new(bios_va, bios_size);
+    let bios_map: MapGuard = match MapGuard::new_private(bios_pa, bios_size) {
+        Ok(m) => m,
+        Err(_e) => vc_terminate_svsm_fwcfg(),
+    };
+
+    let mut bios_info: BiosInfo = BiosInfo::new(bios_map.va(), bios_size);
     if !parse_bios_guid_table(&mut bios_info) {
         vc_terminate_svsm_bios();
     }
@@ -372,8 +376,11 @@ pub fn start_bios() {
     if !smp_prepare_bios_vmpl(caa) {
         vc_terminate_svsm_general();
     }
+}
 
-    pgtable_unmap_pages(bios_va, bios_size);
+/// Locate BIOS, prepare it, advertise SVSM presence and run BIOS
+pub fn start_bios() {
+    prepare_bios();
 
     if !smp_run_bios_vmpl() {
         vc_terminate_svsm_general();
