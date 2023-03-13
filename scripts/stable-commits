@@ -6,13 +6,13 @@
 
 # Hypervisor commit
 KERNEL_GIT_URL="https://github.com/AMDESE/linux.git"
-KERNEL_HOST_BRANCH="svsm-preview-hv"
-KERNEL_GUEST_BRANCH="svsm-preview-guest"
+KERNEL_HOST_BRANCH="svsm-preview-hv-v2"
+KERNEL_GUEST_BRANCH="svsm-preview-guest-v2"
 
 # qemu commit
 QEMU_GIT_URL="https://github.com/AMDESE/qemu.git"
-QEMU_BRANCH="svsm-preview"
+QEMU_BRANCH="svsm-preview-v2"
 
 # Guest BIOS (OVMF)
 OVMF_GIT_URL="https://github.com/AMDESE/ovmf"
-OVMF_BRANCH="svsm-preview"
+OVMF_BRANCH="svsm-preview-v2"
