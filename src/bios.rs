@@ -255,30 +255,27 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
     }
 
     let bios_secrets_pa: PhysAddr = PhysAddr::new(section.address_u64());
-
-    let bios_secrets_va: VirtAddr =
-        match pgtable_map_pages_private(bios_secrets_pa, section.size_u64()) {
-            Ok(v) => v,
+    let mut bios_secrets_map: MapGuard =
+        match MapGuard::new_private(bios_secrets_pa, section.size_u64()) {
+            Ok(m) => m,
             Err(_e) => return false,
         };
     let svsm_secrets_va: VirtAddr = get_svsm_secrets_page();
 
     // Copy the Secrets page to the BIOS Secrets page location
-    let bios_secrets: *mut SnpSecrets = bios_secrets_va.as_mut_ptr();
+    let bios_secrets: &mut SnpSecrets = bios_secrets_map.as_object_mut();
     let svsm_secrets: *const SnpSecrets = svsm_secrets_va.as_ptr();
     *bios_secrets = *svsm_secrets;
 
     // Clear the VMPCK0 key
-    (*bios_secrets).clear_vmpck0();
+    bios_secrets.clear_vmpck0();
 
     // Advertise the SVSM
-    (*bios_secrets).set_svsm_base(pgtable_va_to_pa(get_svsm_begin()).as_u64());
-    (*bios_secrets).set_svsm_size(get_svsm_end().as_u64() - get_svsm_begin().as_u64());
-    (*bios_secrets).set_svsm_caa(caa.as_u64());
-    (*bios_secrets).set_svsm_max_version(1);
-    (*bios_secrets).set_svsm_guest_vmpl(1);
-
-    pgtable_unmap_pages(bios_secrets_va, section.size_u64());
+    bios_secrets.set_svsm_base(pgtable_va_to_pa(get_svsm_begin()).as_u64());
+    bios_secrets.set_svsm_size(get_svsm_end().as_u64() - get_svsm_begin().as_u64());
+    bios_secrets.set_svsm_caa(caa.as_u64());
+    bios_secrets.set_svsm_max_version(1);
+    bios_secrets.set_svsm_guest_vmpl(1);
 
     let section: SnpSection = match find_snp_section(bios_info, SNP_SECT_CPUID) {
         Some(p) => p,
