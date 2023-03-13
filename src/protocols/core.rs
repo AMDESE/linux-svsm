@@ -13,6 +13,7 @@ use crate::*;
 use core::mem::size_of;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::structures::paging::frame::PhysFrame;
+use x86_64::structures::paging::mapper::MapToError;
 
 /// 0
 const SVSM_CORE_REMAP_CA: u32 = 0;
@@ -372,39 +373,44 @@ unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bo
         len = PAGE_2MB_SIZE;
     }
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, len) {
-        Ok(v) => v,
+    let map: MapGuard = match MapGuard::new_private(gpa, len) {
+        Ok(m) => m,
         Err(_e) => return (false, false),
     };
 
     if action == 0 {
         flush = true;
 
-        let ret: u32 = revoke_vmpl_access(va, page_size);
+        let ret: u32 = revoke_vmpl_access(map.va(), page_size);
         if ret != 0 {
             (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
             return (false, flush);
         }
     }
 
-    let ret: u32 = pvalidate(va.as_u64(), page_size, action);
+    let ret: u32 = pvalidate(map.va().as_u64(), page_size, action);
     if ret != 0 && (ret != PVALIDATE_CF_SET || ignore_cf == 0) {
         (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
         return (false, flush);
     }
 
     if action != 0 {
-        let ret: u32 = grant_vmpl_access(va, page_size, VMPL::Vmpl1 as u8);
+        let ret: u32 = grant_vmpl_access(map.va(), page_size, VMPL::Vmpl1 as u8);
         if ret != 0 {
             (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
             return (false, flush);
         }
     }
 
-    pgtable_unmap_pages(va, len);
-
     (*vmsa).set_rax(SVSM_SUCCESS);
     (true, flush)
+}
+
+fn is_in_calling_area(gpa: PhysAddr) -> bool {
+    let gfn: PhysFrame = PhysFrame::containing_address(gpa);
+    let caa_gpa: PhysAddr = unsafe { PERCPU.caa(VMPL::Vmpl1) };
+    let caa_gfn: PhysFrame = PhysFrame::containing_address(caa_gpa);
+    gfn == caa_gfn
 }
 
 unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
@@ -416,20 +422,25 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
         return;
     }
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, CAA_MAP_SIZE) {
-        Ok(v) => v,
+    let map_res: Result<MapGuard, MapToError<_>> = match is_in_calling_area(gpa) {
+        true => MapGuard::new_private_persistent(gpa, CAA_MAP_SIZE),
+        false => MapGuard::new_private(gpa, CAA_MAP_SIZE),
+    };
+    let mut map: MapGuard = match map_res {
+        Ok(m) => m,
         Err(_e) => return,
     };
 
-    let request: *mut PvalidateRequest = va.as_mut_ptr();
-    if (*request).entries() == 0 || (*request).entries() < (*request).next() {
+    let va: VirtAddr = map.va();
+    let request: &mut PvalidateRequest = map.as_object_mut();
+    if request.entries() == 0 || request.entries() < request.next() {
         return;
     }
 
     // Request data cannot cross a 4K boundary
     let va_end: VirtAddr = va
         + size_of::<PvalidateRequest>()
-        + ((*request).entries() as usize * size_of::<PvalidateEntry>())
+        + (request.entries() as usize * size_of::<PvalidateEntry>())
         - 1_u64;
 
     if va.align_down(PAGE_SIZE) != va_end.align_down(PAGE_SIZE) {
@@ -438,7 +449,7 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
 
     let mut flush: bool = false;
     let mut e_va: VirtAddr = va + size_of::<PvalidateRequest>();
-    while (*request).next() < (*request).entries() {
+    while request.next() < request.entries() {
         let entry: *const PvalidateEntry = e_va.as_ptr();
 
         let (success, should_flush) = handle_pvalidate(vmsa, entry);
@@ -450,15 +461,10 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
         }
 
         e_va += size_of::<PvalidateEntry>();
-        (*request).set_next((*request).next() + 1);
+        request.set_next(request.next() + 1);
     }
 
-    //
-    // If the PVALIDATE structure is not part of the CA, ensure it is unmapped.
-    //
-    if gpa.align_down(PAGE_SIZE) != PERCPU.caa(VMPL::Vmpl1).align_down(PAGE_SIZE) {
-        pgtable_unmap_pages(va, CAA_MAP_SIZE);
-    }
+    drop(map);
 
     //
     // Since the VA of the pages is not known to the SVSM, a global ASID
