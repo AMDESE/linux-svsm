@@ -24,6 +24,18 @@ macro_rules! funcs {
     };
 }
 
+/// Generate get method for a given struct field and type
+#[macro_export]
+macro_rules! getter_func {
+    ($name: ident, $T: ty) => {
+        paste::paste! {
+            pub fn [<$name>](&self) -> $T {
+                self.$name
+            }
+        }
+    };
+}
+
 /// Statically check for a condition
 #[macro_export]
 macro_rules! STATIC_ASSERT {
