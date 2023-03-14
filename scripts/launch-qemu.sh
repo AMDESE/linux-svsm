@@ -26,6 +26,7 @@ USE_VIRTIO="1"
 BRIDGE=""
 SEV_POLICY=""
 SNP_FLAGS="0"
+DISCARD=""
 
 QEMU_INSTALL_DIR="./usr/local/bin/"
 
@@ -43,6 +44,7 @@ usage() {
 	echo " -sev-policy   policy to use for SEV (SEV=0x01, SEV-ES=0x41, SEV-SNP=0x30000)"
 	echo " -snp-flags    SEV-SNP initialization flags (0 is default)"
 	echo " -mem          guest memory (must specify M or G suffix)"
+	echo " -discard      UPM discard mode for SEV-SNP guests: shared, private, both, none (both is default)"
 	echo " -smp          number of cpus"
 	echo " -maxcpus      maximum number of cpus"
 	echo " -console      display console to use (serial or graphics)"
@@ -189,6 +191,9 @@ while [ -n "$1" ]; do
 		-maxmem)	MAX_MEM=$2
 				shift
 				;;
+		-discard)	DISCARD=$2
+				shift
+				;;
 		-console)	CONSOLE=$2
 				shift
 				;;
@@ -272,6 +277,9 @@ case "$MEM" in
 		;;
 esac
 
+# ensure THP for UPM is enabled
+echo 'always' > /sys/kernel/mm/transparent_hugepage/shmem_enabled
+
 # we add all the qemu command line options into a file
 QEMU_CMDLINE=/tmp/cmdline.$$
 rm -rf ${QEMU_CMDLINE}
@@ -284,9 +292,6 @@ add_opts "-cpu $CPU"
 
 # add number of VCPUs
 [ -n "${SMP_NCPUS}" ] && add_opts "-smp ${SMP_NCPUS}${MAX_NCPUS:+,maxcpus=$MAX_NCPUS}"
-
-# define guest memory
-add_opts "-m ${MEM}${MAX_MEM:+,slots=5,maxmem=$MAX_MEM}"
 
 # If this is SEV guest then add the encryption device objects to enable support
 if [ -n "${SEV_GUEST}" ]; then
@@ -302,17 +307,24 @@ if [ -n "${SEV_GUEST}" ]; then
 		SEV_POLICY=$(printf "%#x" $POLICY)
 	fi
 
-	get_cbitpos
-	add_opts "-machine type=q35,memory-encryption=sev0,vmport=off${SVSM:+,svsm=$SVSM}"
+	if [ -n "$SEV_SNP_GUEST" ]; then
+		add_opts "-machine type=q35,confidential-guest-support=sev0,memory-backend=ram1,kvm-type=protected,vmport=off${SVSM:+,svsm=$SVSM}"
+		add_opts "-object memory-backend-memfd-private,id=ram1,size=$MEM,share=true"
+	else
+		add_opts "-m ${MEM}${MAX_MEM:+,slots=5,maxmem=$MAX_MEM}"
+		add_opts "-machine type=q35,confidential-guest-support=sev0,vmport=off"
+	fi
 
+	get_cbitpos
 	SEV_COMMON="id=sev0,policy=${SEV_POLICY},cbitpos=${CBITPOS},reduced-phys-bits=1"
 	if [ -n "$SEV_SNP_GUEST" ]; then
 		SNP_FLAGS=$(printf "%#x" $SNP_FLAGS)
-		add_opts "-object sev-snp-guest,$SEV_COMMON,init-flags=${SNP_FLAGS},host-data=b2l3bmNvd3FuY21wbXA"
+		add_opts "-object sev-snp-guest,$SEV_COMMON,init-flags=${SNP_FLAGS},host-data=b2l3bmNvd3FuY21wbXA${DISCARD:+,discard=$DISCARD}"
 	else
 		add_opts "-object sev-guest,$SEV_COMMON"
 	fi
 else
+	add_opts "-m ${MEM}${MAX_MEM:+,slots=5,maxmem=$MAX_MEM}"
 	add_opts "-machine type=q35"
 fi
 
