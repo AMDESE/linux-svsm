@@ -13,4 +13,4 @@ pub mod error_codes;
 pub use crate::protocols::core::*;
 
 /// 0
-pub const SVSM_CORE_PROTOCOL: u32 = 0;
+pub const SVSM_CORE_PROTOCOL: u32 = ProtocolId::ProtocolId0 as u32;

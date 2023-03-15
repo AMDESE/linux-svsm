@@ -44,8 +44,7 @@ impl VersionInfo {
 
 static PROTOCOL_INFO: [VersionInfo; 1] = [VersionInfo { min: 1, max: 1 }];
 
-#[allow(dead_code)]
-enum ProtocolId {
+pub enum ProtocolId {
     ProtocolId0,
 
     MaxProtocolId,
