@@ -26,6 +26,7 @@ USE_VIRTIO="1"
 BRIDGE=""
 SEV_POLICY=""
 SNP_FLAGS="0"
+SNP_UPM="1"
 DISCARD=""
 
 QEMU_INSTALL_DIR="./usr/local/bin/"
@@ -44,6 +45,7 @@ usage() {
 	echo " -sev-policy   policy to use for SEV (SEV=0x01, SEV-ES=0x41, SEV-SNP=0x30000)"
 	echo " -snp-flags    SEV-SNP initialization flags (0 is default)"
 	echo " -mem          guest memory (must specify M or G suffix)"
+	echo " -noupm        do not use UPM support (for when running with non-UPM based SNP support)"
 	echo " -discard      UPM discard mode for SEV-SNP guests: shared, private, both, none (both is default)"
 	echo " -smp          number of cpus"
 	echo " -maxcpus      maximum number of cpus"
@@ -191,6 +193,8 @@ while [ -n "$1" ]; do
 		-maxmem)	MAX_MEM=$2
 				shift
 				;;
+		-noupm)		SNP_UPM=""
+				;;
 		-discard)	DISCARD=$2
 				shift
 				;;
@@ -277,6 +281,10 @@ case "$MEM" in
 		;;
 esac
 
+if [ -n "$DISCARD" -a -z "$SNP_UPM" ]; then
+	DISCARD=""
+fi
+
 # ensure THP for UPM is enabled
 echo 'always' > /sys/kernel/mm/transparent_hugepage/shmem_enabled
 
@@ -307,7 +315,7 @@ if [ -n "${SEV_GUEST}" ]; then
 		SEV_POLICY=$(printf "%#x" $POLICY)
 	fi
 
-	if [ -n "$SEV_SNP_GUEST" ]; then
+	if [ -n "$SEV_SNP_GUEST" -a -n "$SNP_UPM" ]; then
 		add_opts "-machine type=q35,confidential-guest-support=sev0,memory-backend=ram1,kvm-type=protected,vmport=off${SVSM:+,svsm=$SVSM}"
 		add_opts "-object memory-backend-memfd-private,id=ram1,size=$MEM,share=true"
 	else

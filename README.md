@@ -189,6 +189,14 @@ VMPL1 (lower privilege level) with:
 [    1.264552] SEV: SNP running at VMPL1.
 ```
 
+Note: The launch-qemu.sh script was updated to support the newer UPM-based
+SEV-SNP support. If you are running on an older SEV-SNP host kernel that
+doesn't support UPM, please add the -noupm parameter to the launch command:
+
+```
+[host@snp-host ~]#  ./launch-qemu.sh -hda guest.qcow2 -sev-snp -svsm svsm.bin -noupm
+```
+
 By default, SVSM lives at 512 GB (SVSM\_GPA), and has 256 MB of memory
 (SVSM\_MEM). This can be changed at compilation. For example:
 
