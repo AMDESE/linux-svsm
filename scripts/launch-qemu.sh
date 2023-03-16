@@ -320,7 +320,7 @@ if [ -n "${SEV_GUEST}" ]; then
 		add_opts "-object memory-backend-memfd-private,id=ram1,size=$MEM,share=true"
 	else
 		add_opts "-m ${MEM}${MAX_MEM:+,slots=5,maxmem=$MAX_MEM}"
-		add_opts "-machine type=q35,confidential-guest-support=sev0,vmport=off"
+		add_opts "-machine type=q35,confidential-guest-support=sev0,vmport=off${SVSM:+,svsm=$SVSM}"
 	fi
 
 	get_cbitpos
