@@ -247,6 +247,65 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rax(SVSM_SUCCESS);
 }
 
+unsafe fn __handle_vcpu_create_request(
+    apic_id: u32,
+    vmpl: VMPL,
+    create_vmsa_gpa: PhysAddr,
+    create_vmsa_va: VirtAddr,
+    create_ca_gpa: PhysAddr,
+) -> Result<(), u64> {
+    let create_vmsa: *mut Vmsa = create_vmsa_va.as_mut_ptr();
+
+    // Revoke access to all non-zero VMPL levels to prevent tampering
+    // before checking the fields within the new VMSA.
+    let ret: u32 = revoke_vmpl_access(create_vmsa_va, RMP_4K);
+    if ret != 0 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    BARRIER!();
+
+    // Only VMPL1 is currently supported
+    if (*create_vmsa).vmpl() != 1 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    // EFER.SVME must be one
+    if ((*create_vmsa).efer() & EFER_SVME) == 0 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    // Restrict the VMSA page to, at most, read-only for non-VMPL0. This
+    // is to prevent a guest from altering the VMPL level within the VMSA.
+    let vmin: u64 = VMPL::Vmpl1 as u64;
+    let vmax: u64 = vmpl as u64 + 1;
+
+    for i in vmin..vmax {
+        let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_R | i);
+        if ret != 0 {
+            return Err(SVSM_ERR_INVALID_PARAMETER);
+        }
+    }
+
+    // Turn the page into a VMSA page
+    let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_VMSA | vmpl as u64);
+    if ret != 0 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    VMSA_LIST.push(create_vmsa_gpa, apic_id);
+
+    let cpu_id: usize = match smp_get_cpu_id(apic_id) {
+        Some(c) => c,
+        None => return Err(SVSM_ERR_INVALID_PARAMETER),
+    };
+
+    PERCPU.set_vmsa_for(create_vmsa_gpa, vmpl, cpu_id);
+    PERCPU.set_caa_for(create_ca_gpa, vmpl, cpu_id);
+
+    return Ok(());
+}
+
 unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rax(SVSM_ERR_INVALID_PARAMETER);
 
@@ -268,73 +327,22 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         Ok(v) => v,
         Err(_e) => return,
     };
-    let create_vmsa: *mut Vmsa = create_vmsa_va.as_mut_ptr();
 
     let vmpl: VMPL = VMPL::Vmpl1;
-    'main: loop {
-        // Revoke access to all non-zero VMPL levels to prevent tampering
-        // before checking the fields within the new VMSA.
-        let ret: u32 = revoke_vmpl_access(create_vmsa_va, RMP_4K);
-        if ret != 0 {
-            break;
+    let ret: u64 = match __handle_vcpu_create_request(
+        apic_id,
+        vmpl,
+        create_vmsa_gpa,
+        create_vmsa_va,
+        create_ca_gpa,
+    ) {
+        Ok(()) => SVSM_SUCCESS,
+        Err(code) => {
+            // On error turn the page (back) into a non-VMSA page
+            grant_vmpl_access(create_vmsa_va, RMP_4K, vmpl as u8);
+            code
         }
-
-        BARRIER!();
-
-        // Only VMPL1 is currently supported
-        if (*create_vmsa).vmpl() != 1 {
-            break;
-        }
-
-        // EFER.SVME must be one
-        if ((*create_vmsa).efer() & EFER_SVME) == 0 {
-            break;
-        }
-
-        // Restrict the VMSA page to, at most, read-only for non-VMPL0. This
-        // is to prevent a guest from altering the VMPL level within the VMSA.
-        let vmin: u64 = VMPL::Vmpl1 as u64;
-        let vmax: u64 = vmpl as u64 + 1;
-
-        for i in vmin..vmax {
-            let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_R | i);
-            if ret != 0 {
-                break 'main;
-            }
-        }
-
-        // Turn the page into a VMSA page
-        let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_VMSA | vmpl as u64);
-        if ret != 0 {
-            break;
-        }
-
-        VMSA_LIST.push(create_vmsa_gpa, apic_id);
-
-        let cpu_id: usize = match smp_get_cpu_id(apic_id) {
-            Some(c) => c,
-            None => break,
-        };
-
-        PERCPU.set_vmsa_for(create_vmsa_gpa, vmpl, cpu_id);
-        PERCPU.set_caa_for(create_ca_gpa, vmpl, cpu_id);
-
-        pgtable_unmap_pages(create_vmsa_va, VMSA_MAP_SIZE);
-
-        // Since the VA of the VMSA page is not known to the SVSM, a global ASID
-        // flush must be done.
-        invlpgb_all();
-        tlbsync();
-        (*vmsa).set_rax(SVSM_SUCCESS);
-
-        return;
-    }
-
-    // Error path when break from loop vs return from loop
-    //
-
-    // On error turn the page (back) into a non-VMSA page
-    grant_vmpl_access(create_vmsa_va, RMP_4K, vmpl as u8);
+    };
 
     pgtable_unmap_pages(create_vmsa_va, VMSA_MAP_SIZE);
 
@@ -342,6 +350,8 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
     // flush must be done.
     invlpgb_all();
     tlbsync();
+
+    (*vmsa).set_rax(ret);
 }
 
 unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bool, bool) {
