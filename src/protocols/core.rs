@@ -250,11 +250,12 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
 unsafe fn __handle_vcpu_create_request(
     apic_id: u32,
     vmpl: VMPL,
-    create_vmsa_gpa: PhysAddr,
-    create_vmsa_va: VirtAddr,
+    create_vmsa_map: &MapGuard,
     create_ca_gpa: PhysAddr,
 ) -> Result<(), u64> {
-    let create_vmsa: *mut Vmsa = create_vmsa_va.as_mut_ptr();
+    let create_vmsa_gpa: PhysAddr = create_vmsa_map.pa();
+    let create_vmsa_va: VirtAddr = create_vmsa_map.va();
+    let create_vmsa: &Vmsa = create_vmsa_map.as_object();
 
     // Revoke access to all non-zero VMPL levels to prevent tampering
     // before checking the fields within the new VMSA.
@@ -266,12 +267,12 @@ unsafe fn __handle_vcpu_create_request(
     BARRIER!();
 
     // Only VMPL1 is currently supported
-    if (*create_vmsa).vmpl() != 1 {
+    if create_vmsa.vmpl() != 1 {
         return Err(SVSM_ERR_INVALID_PARAMETER);
     }
 
     // EFER.SVME must be one
-    if ((*create_vmsa).efer() & EFER_SVME) == 0 {
+    if (create_vmsa.efer() & EFER_SVME) == 0 {
         return Err(SVSM_ERR_INVALID_PARAMETER);
     }
 
@@ -329,20 +330,15 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
     };
 
     let vmpl: VMPL = VMPL::Vmpl1;
-    let ret: u64 = match __handle_vcpu_create_request(
-        apic_id,
-        vmpl,
-        create_vmsa_gpa,
-        create_vmsa_map.va(),
-        create_ca_gpa,
-    ) {
-        Ok(()) => SVSM_SUCCESS,
-        Err(code) => {
-            // On error turn the page (back) into a non-VMSA page
-            grant_vmpl_access(create_vmsa_map.va(), RMP_4K, vmpl as u8);
-            code
-        }
-    };
+    let ret: u64 =
+        match __handle_vcpu_create_request(apic_id, vmpl, &create_vmsa_map, create_ca_gpa) {
+            Ok(()) => SVSM_SUCCESS,
+            Err(code) => {
+                // On error turn the page (back) into a non-VMSA page
+                grant_vmpl_access(create_vmsa_map.va(), RMP_4K, vmpl as u8);
+                code
+            }
+        };
 
     drop(create_vmsa_map);
 
