@@ -413,13 +413,6 @@ unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bo
     (true, flush)
 }
 
-fn is_in_calling_area(gpa: PhysAddr) -> bool {
-    let gfn: PhysFrame = PhysFrame::containing_address(gpa);
-    let caa_gpa: PhysAddr = unsafe { PERCPU.caa(VMPL::Vmpl1) };
-    let caa_gfn: PhysFrame = PhysFrame::containing_address(caa_gpa);
-    gfn == caa_gfn
-}
-
 unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rax(SVSM_ERR_INVALID_PARAMETER);
 
