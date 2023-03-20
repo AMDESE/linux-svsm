@@ -323,8 +323,8 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         return;
     }
 
-    let create_vmsa_va: VirtAddr = match pgtable_map_pages_private(create_vmsa_gpa, VMSA_MAP_SIZE) {
-        Ok(v) => v,
+    let create_vmsa_map: MapGuard = match MapGuard::new_private(create_vmsa_gpa, VMSA_MAP_SIZE) {
+        Ok(m) => m,
         Err(_e) => return,
     };
 
@@ -333,18 +333,18 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         apic_id,
         vmpl,
         create_vmsa_gpa,
-        create_vmsa_va,
+        create_vmsa_map.va(),
         create_ca_gpa,
     ) {
         Ok(()) => SVSM_SUCCESS,
         Err(code) => {
             // On error turn the page (back) into a non-VMSA page
-            grant_vmpl_access(create_vmsa_va, RMP_4K, vmpl as u8);
+            grant_vmpl_access(create_vmsa_map.va(), RMP_4K, vmpl as u8);
             code
         }
     };
 
-    pgtable_unmap_pages(create_vmsa_va, VMSA_MAP_SIZE);
+    drop(create_vmsa_map);
 
     // Since the VA of the VMSA page is not known to the SVSM, a global ASID
     // flush must be done.
