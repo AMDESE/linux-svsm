@@ -50,6 +50,8 @@ SECTIONS
 		*(.eh_frame)
 		*(.note.GNU-stack)
 		*(.note.gnu.build-id)
+		*(.debug)
+		*(.debug_*)
 	}
 
 	. = ASSERT(!(SVSM_GVA_LDS & 0xfffff), "SVSM_GPA not 2MB aligned! make clean and try again...");
