@@ -66,9 +66,13 @@ pub const SEV_FEAT_RESERVED_1: u64 = 0b1111 << 10;
 /// Bit 14
 pub const SEV_FEAT_VMSA_REG_PROTECTION: u64 = BIT!(14);
 
+// SMT protection is enabled
+/// Bit 15
+pub const SEV_FEAT_SMT_PROTECTION: u64 = BIT!(15);
+
 // Reserved
-/// Bits 15 to 63
-pub const SEV_FEAT_RESERVED_2: u64 = !(BIT!(15) - 1);
+/// Bits 16 to 63
+pub const SEV_FEAT_RESERVED_2: u64 = !(BIT!(16) - 1);
 
 //
 // Different VMPL levels may have distinct SEV features,
@@ -94,8 +98,9 @@ pub const SEV_FEAT_RESERVED_2: u64 = !(BIT!(15) - 1);
 //  9 - SecureTSC                  MBZ             MBZ
 // 10 - 13  Reserved_1             MBZ             MBZ
 // 14 - VmsaRegisterProtection     MBZ             MBZ
+// 15 - SmtProtection              MBZ             MBZ
 //
-// 15 - 63 Reserved_2              MBZ             MBZ
+// 16 - 63 Reserved_2              MBZ             MBZ
 //
 
 /// These are the features that must be one for VMPL1
@@ -108,6 +113,7 @@ pub const VMPL1_UNSUPPORTED_SEV_FEATS: u64 = SEV_FEAT_VIRTUAL_TOM
     | SEV_FEAT_SECURE_TSC
     | SEV_FEAT_RESERVED_1
     | SEV_FEAT_VMSA_REG_PROTECTION
+    | SEV_FEAT_SMT_PROTECTION
     | SEV_FEAT_RESERVED_2;
 
 #[repr(C, packed)]
