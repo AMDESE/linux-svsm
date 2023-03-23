@@ -79,3 +79,41 @@ lazy_static! {
     /// Global list of VMSAs
     pub static ref VMSA_LIST: VmsaList = VmsaList::default();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_apic_id() {
+        let list: VmsaList = VmsaList::default();
+        list.push(PhysAddr::new(0x1000), 2);
+        list.push(PhysAddr::new(0x5000), 1);
+        assert_eq!(list.get_apic_id(PhysAddr::new(0x1000)), Some(2));
+        assert_eq!(list.get_apic_id(PhysAddr::new(0x5000)), Some(1));
+        assert_eq!(list.get_apic_id(PhysAddr::new(0x3000)), None);
+    }
+
+    #[test]
+    fn test_contains() {
+        let list: VmsaList = VmsaList::default();
+        list.push(PhysAddr::new(0x1000), 2);
+        list.push(PhysAddr::new(0x5000), 1);
+        assert_eq!(list.contains(PhysAddr::new(0x1000)), true);
+        assert_eq!(list.contains(PhysAddr::new(0x5000)), true);
+        assert_eq!(list.contains(PhysAddr::new(0x3000)), false);
+    }
+
+    #[test]
+    fn test_remove() {
+        let list: VmsaList = VmsaList::default();
+        list.push(PhysAddr::new(0x1000), 2);
+        list.push(PhysAddr::new(0x5000), 1);
+        assert_eq!(list.remove(PhysAddr::new(0x1000)), true);
+        assert_eq!(list.contains(PhysAddr::new(0x1000)), false);
+        assert_eq!(list.contains(PhysAddr::new(0x5000)), true);
+
+        // Test remove of non-existing vmsa
+        assert_eq!(list.remove(PhysAddr::new(0x3000)), false);
+    }
+}
