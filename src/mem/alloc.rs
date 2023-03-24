@@ -1085,9 +1085,10 @@ unsafe impl GlobalAlloc for SvsmAllocator {
     }
 }
 
-#[global_allocator]
+#[cfg_attr(not(test), global_allocator)]
 pub static mut ALLOCATOR: SvsmAllocator = SvsmAllocator::new();
 
+#[cfg(not(test))]
 #[alloc_error_handler]
 fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     panic!("Allocation failed: {:?}\n", layout)

@@ -15,7 +15,7 @@
 // We cannot use the Rust runtime, Hence we don't have the C start point (C run time 0 aka crt0).
 // Tell the compiler we don't want to use the normal entry chain. Nobody calls main(), since we
 // overwrite _start().
-#![no_main]
+#![cfg_attr(not(test), no_main)]
 
 /// Initialize BIOS for the guest
 pub mod bios;
@@ -45,8 +45,10 @@ use crate::svsm_request::svsm_request_loop;
 use crate::util::*;
 use crate::vmsa::*;
 
+#[cfg(not(test))]
 use core::panic::PanicInfo;
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
     prints!("PANIC!\n{}\nPANIC!\n", panic_info);

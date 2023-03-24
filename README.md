@@ -149,6 +149,12 @@ force prerequisites re-installation on the next execution of make do:
 # make superclean
 ```
 
+To run the unit tests:
+
+```
+# make test
+```
+
 ## Running Linux SVSM <a name="run"></a>
 
 The building process will generate svsm.bin that can be passed to Qemu (svsm

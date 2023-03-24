@@ -10,6 +10,7 @@ build-std = ["core", "compiler_builtins", "alloc"]
 [build]
 target = "svsm-target.json"
 
+[target.svsm-target]
 rustflags = [
   "-C", "link-arg=-Tsrc/start/svsm.lds",
 ]
