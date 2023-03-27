@@ -143,15 +143,6 @@ unsafe fn __create_bios_vmsa(vmsa_va: VirtAddr) {
     }
 }
 
-fn create_bios_vmsa() -> VirtAddr {
-    let frame: PhysFrame = alloc_vmsa();
-    let vmsa_va: VirtAddr = pgtable_pa_to_va(frame.start_address());
-
-    unsafe { __create_bios_vmsa(vmsa_va) }
-
-    vmsa_va
-}
-
 /// Create VMSA (execution context information) for an AP
 fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
     let frame: PhysFrame = alloc_vmsa();
@@ -243,14 +234,12 @@ pub fn smp_run_bios_vmpl() -> bool {
             return false;
         }
 
-        let vmsa_va: VirtAddr = match pgtable_map_pages_private(vmsa_pa, PAGE_SIZE) {
+        let vmsa_map: MapGuard = match MapGuard::new_private(vmsa_pa, PAGE_SIZE) {
             Ok(r) => r,
             Err(_e) => return false,
         };
 
-        vc_ap_create(vmsa_va, PERCPU.apic_id());
-
-        pgtable_unmap_pages(vmsa_va, PAGE_SIZE);
+        vc_ap_create(vmsa_map.va(), PERCPU.apic_id());
     }
 
     true
@@ -258,10 +247,14 @@ pub fn smp_run_bios_vmpl() -> bool {
 
 /// Create a Vmsa and Caa and prepare them
 pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
-    let vmsa: VirtAddr = create_bios_vmsa();
-    let vmsa_pa: PhysAddr = pgtable_va_to_pa(vmsa);
+    let vmsa_pa: PhysAddr = alloc_vmsa().start_address();
+    let vmsa: MapGuard = match MapGuard::new_private(vmsa_pa, VMSA_MAP_SIZE) {
+        Ok(v) => v,
+        Err(_e) => return false,
+    };
+    unsafe { __create_bios_vmsa(vmsa.va()) }
 
-    let caa: VirtAddr = match pgtable_map_pages_private(caa_pa, CAA_MAP_SIZE) {
+    let caa: MapGuard = match MapGuard::new_private(caa_pa, CAA_MAP_SIZE) {
         Ok(c) => c,
         Err(_e) => return false,
     };
@@ -281,12 +274,12 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     //
     // The lower VMPL has not been run, yet, so no TLB flushing is needed.
     //
-    let ret: u32 = rmpadjust(caa.as_u64(), RMP_4K, VMPL_RWX | VMPL::Vmpl1 as u64);
+    let ret: u32 = rmpadjust(caa.va().as_u64(), RMP_4K, VMPL_RWX | VMPL::Vmpl1 as u64);
     if ret != 0 {
         return false;
     }
 
-    let ret: u32 = rmpadjust(vmsa.as_u64(), RMP_4K, VMPL_R | VMPL::Vmpl1 as u64);
+    let ret: u32 = rmpadjust(vmsa.va().as_u64(), RMP_4K, VMPL_R | VMPL::Vmpl1 as u64);
     if ret != 0 {
         return false;
     }
@@ -294,18 +287,18 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     let vmin: u64 = VMPL::Vmpl2 as u64;
     let vmax: u64 = VMPL::VmplMax as u64;
     for i in vmin..vmax {
-        let ret: u32 = rmpadjust(caa.as_u64(), RMP_4K, i);
+        let ret: u32 = rmpadjust(caa.va().as_u64(), RMP_4K, i);
         if ret != 0 {
             return false;
         }
 
-        let ret: u32 = rmpadjust(vmsa.as_u64(), RMP_4K, i);
+        let ret: u32 = rmpadjust(vmsa.va().as_u64(), RMP_4K, i);
         if ret != 0 {
             return false;
         }
     }
 
-    let ret: u32 = rmpadjust(vmsa.as_u64(), RMP_4K, VMPL_VMSA | VMPL::Vmpl1 as u64);
+    let ret: u32 = rmpadjust(vmsa.va().as_u64(), RMP_4K, VMPL_VMSA | VMPL::Vmpl1 as u64);
     if ret != 0 {
         return false;
     }
@@ -313,9 +306,6 @@ pub fn smp_prepare_bios_vmpl(caa_pa: PhysAddr) -> bool {
     unsafe {
         svsm_request_add_init_vmsa(vmsa_pa, PERCPU.apic_id());
     }
-
-    pgtable_unmap_pages(caa, CAA_MAP_SIZE);
-    pgtable_unmap_pages(vmsa, PAGE_SIZE);
 
     true
 }

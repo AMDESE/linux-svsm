@@ -419,7 +419,7 @@ unsafe fn __pgtable_init(flags: PageTableFlags, allocator: &mut PageTableAllocat
 }
 
 /// Unmap pages
-pub fn pgtable_unmap_pages(va: VirtAddr, len: u64) -> bool {
+pub(crate) fn pgtable_unmap_pages(va: VirtAddr, len: u64) -> bool {
     assert!(len != 0);
 
     let mut map: VirtAddr = va.align_down(PAGE_SIZE);
@@ -450,12 +450,18 @@ pub fn pgtable_unmap_pages(va: VirtAddr, len: u64) -> bool {
 ///
 /// If a previous mapping exists and does not conform to the new mapping, the
 /// previous mapping is replaced by the new mapping.
-pub fn pgtable_map_pages_private(pa: PhysAddr, len: u64) -> Result<VirtAddr, MapToError<Size4KiB>> {
+pub(crate) fn pgtable_map_pages_private(
+    pa: PhysAddr,
+    len: u64,
+) -> Result<VirtAddr, MapToError<Size4KiB>> {
     unsafe { __map_pages(pa, len, PageType::Private) }
 }
 
 /// Map pages as shared
-pub fn pgtable_map_pages_shared(pa: PhysAddr, len: u64) -> Result<VirtAddr, MapToError<Size4KiB>> {
+pub(crate) fn pgtable_map_pages_shared(
+    pa: PhysAddr,
+    len: u64,
+) -> Result<VirtAddr, MapToError<Size4KiB>> {
     unsafe { __map_pages(pa, len, PageType::Shared) }
 }
 

@@ -239,8 +239,8 @@ fn find_file_selector(fname: &str) -> Option<u16> {
     return None;
 }
 
-/// Privately map BIOS
-pub fn fwcfg_map_bios() -> Option<(VirtAddr, u64)> {
+/// Returns the GPA and size of the area in which the bios is loaded
+pub fn fwcfg_get_bios_area() -> Option<(PhysAddr, u64)> {
     let bios_pa: u64;
     let bios_size: u64;
 
@@ -264,12 +264,7 @@ pub fn fwcfg_map_bios() -> Option<(VirtAddr, u64)> {
         None => return None,
     };
 
-    let bios_va: VirtAddr = match pgtable_map_pages_private(PhysAddr::new(bios_pa), bios_size) {
-        Ok(b) => b,
-        Err(_e) => return None,
-    };
-
-    Some((bios_va, bios_size))
+    Some((PhysAddr::new(bios_pa), bios_size))
 }
 
 /// Perform DMA to read firmware configuration files

@@ -13,6 +13,7 @@ use crate::*;
 use core::mem::size_of;
 use x86_64::addr::{PhysAddr, VirtAddr};
 use x86_64::structures::paging::frame::PhysFrame;
+use x86_64::structures::paging::mapper::MapToError;
 
 /// 0
 const SVSM_CORE_REMAP_CA: u32 = 0;
@@ -187,6 +188,27 @@ unsafe fn revoke_vmpl_access(va: VirtAddr, page_size: u32) -> u32 {
     return 0;
 }
 
+/// Turn the page at `gpa` to a non-VMSA page
+unsafe fn demote_vmsa_page(gpa: PhysAddr) -> Result<(), u64> {
+    let map: MapGuard = match MapGuard::new_private(gpa, VMSA_MAP_SIZE) {
+        Ok(m) => m,
+        Err(_e) => return Err(SVSM_ERR_INVALID_PARAMETER),
+    };
+
+    //
+    // Set EFER.SVME to 0 to ensure the VMSA is not in-use and can't be used
+    // by the hypervisor to run the vCPU while it is being deleted.
+    //
+    if !vmsa_clear_efer_svme(map.va()) {
+        // EFER.SVME must be set to zero
+        return Err(SVSM_ERR_PROTOCOL_FAIL_INUSE);
+    }
+
+    // Turn the page into a non-VMSA page
+    grant_vmpl_access(map.va(), RMP_4K, VMPL::Vmpl1 as u8);
+    Ok(())
+}
+
 unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
     (*vmsa).set_rax(SVSM_ERR_INVALID_PARAMETER);
 
@@ -209,37 +231,81 @@ unsafe fn handle_delete_vcpu_request(vmsa: *mut Vmsa) {
         None => return,
     };
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, VMSA_MAP_SIZE) {
-        Ok(v) => v,
-        Err(_e) => return,
-    };
-
-    // EFER.SVME must be set to zero
-    (*vmsa).set_rax(SVSM_ERR_PROTOCOL_FAIL_INUSE);
-
-    //
-    // Set EFER.SVME to 0 to ensure the VMSA is not in-use and can't be used
-    // by the hypervisor to run the vCPU while it is being deleted.
-    //
-    if !vmsa_clear_efer_svme(va) {
-        pgtable_unmap_pages(va, VMSA_MAP_SIZE);
+    if let Err(code) = demote_vmsa_page(gpa) {
+        (*vmsa).set_rax(code);
         return;
-    }
-
-    // Turn the page into a non-VMSA page
-    grant_vmpl_access(va, RMP_4K, VMPL::Vmpl1 as u8);
-
-    pgtable_unmap_pages(va, VMSA_MAP_SIZE);
+    };
 
     if PERCPU.vmsa_for(VMPL::Vmpl1, cpu_id) == gpa {
         PERCPU.set_vmsa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
         PERCPU.set_caa_for(PhysAddr::zero(), VMPL::Vmpl1, cpu_id);
     }
     if !VMSA_LIST.remove(gpa) {
+        (*vmsa).set_rax(SVSM_ERR_PROTOCOL_FAIL_INUSE);
         return;
     }
 
     (*vmsa).set_rax(SVSM_SUCCESS);
+}
+
+unsafe fn __handle_vcpu_create_request(
+    apic_id: u32,
+    vmpl: VMPL,
+    create_vmsa_map: &MapGuard,
+    create_ca_gpa: PhysAddr,
+) -> Result<(), u64> {
+    let create_vmsa_gpa: PhysAddr = create_vmsa_map.pa();
+    let create_vmsa_va: VirtAddr = create_vmsa_map.va();
+    let create_vmsa: &Vmsa = create_vmsa_map.as_object();
+
+    // Revoke access to all non-zero VMPL levels to prevent tampering
+    // before checking the fields within the new VMSA.
+    let ret: u32 = revoke_vmpl_access(create_vmsa_va, RMP_4K);
+    if ret != 0 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    BARRIER!();
+
+    // Only VMPL1 is currently supported
+    if create_vmsa.vmpl() != 1 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    // EFER.SVME must be one
+    if (create_vmsa.efer() & EFER_SVME) == 0 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    // Restrict the VMSA page to, at most, read-only for non-VMPL0. This
+    // is to prevent a guest from altering the VMPL level within the VMSA.
+    let vmin: u64 = VMPL::Vmpl1 as u64;
+    let vmax: u64 = vmpl as u64 + 1;
+
+    for i in vmin..vmax {
+        let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_R | i);
+        if ret != 0 {
+            return Err(SVSM_ERR_INVALID_PARAMETER);
+        }
+    }
+
+    // Turn the page into a VMSA page
+    let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_VMSA | vmpl as u64);
+    if ret != 0 {
+        return Err(SVSM_ERR_INVALID_PARAMETER);
+    }
+
+    VMSA_LIST.push(create_vmsa_gpa, apic_id);
+
+    let cpu_id: usize = match smp_get_cpu_id(apic_id) {
+        Some(c) => c,
+        None => return Err(SVSM_ERR_INVALID_PARAMETER),
+    };
+
+    PERCPU.set_vmsa_for(create_vmsa_gpa, vmpl, cpu_id);
+    PERCPU.set_caa_for(create_ca_gpa, vmpl, cpu_id);
+
+    return Ok(());
 }
 
 unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
@@ -259,84 +325,30 @@ unsafe fn handle_create_vcpu_request(vmsa: *mut Vmsa) {
         return;
     }
 
-    let create_vmsa_va: VirtAddr = match pgtable_map_pages_private(create_vmsa_gpa, VMSA_MAP_SIZE) {
-        Ok(v) => v,
+    let create_vmsa_map: MapGuard = match MapGuard::new_private(create_vmsa_gpa, VMSA_MAP_SIZE) {
+        Ok(m) => m,
         Err(_e) => return,
     };
-    let create_vmsa: *mut Vmsa = create_vmsa_va.as_mut_ptr();
 
     let vmpl: VMPL = VMPL::Vmpl1;
-    'main: loop {
-        // Revoke access to all non-zero VMPL levels to prevent tampering
-        // before checking the fields within the new VMSA.
-        let ret: u32 = revoke_vmpl_access(create_vmsa_va, RMP_4K);
-        if ret != 0 {
-            break;
-        }
-
-        BARRIER!();
-
-        // Only VMPL1 is currently supported
-        if (*create_vmsa).vmpl() != 1 {
-            break;
-        }
-
-        // EFER.SVME must be one
-        if ((*create_vmsa).efer() & EFER_SVME) == 0 {
-            break;
-        }
-
-        // Restrict the VMSA page to, at most, read-only for non-VMPL0. This
-        // is to prevent a guest from altering the VMPL level within the VMSA.
-        let vmin: u64 = VMPL::Vmpl1 as u64;
-        let vmax: u64 = vmpl as u64 + 1;
-
-        for i in vmin..vmax {
-            let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_R | i);
-            if ret != 0 {
-                break 'main;
+    let ret: u64 =
+        match __handle_vcpu_create_request(apic_id, vmpl, &create_vmsa_map, create_ca_gpa) {
+            Ok(()) => SVSM_SUCCESS,
+            Err(code) => {
+                // On error turn the page (back) into a non-VMSA page
+                grant_vmpl_access(create_vmsa_map.va(), RMP_4K, vmpl as u8);
+                code
             }
-        }
-
-        // Turn the page into a VMSA page
-        let ret: u32 = rmpadjust(create_vmsa_va.as_u64(), RMP_4K, VMPL_VMSA | vmpl as u64);
-        if ret != 0 {
-            break;
-        }
-
-        VMSA_LIST.push(create_vmsa_gpa, apic_id);
-
-        let cpu_id: usize = match smp_get_cpu_id(apic_id) {
-            Some(c) => c,
-            None => break,
         };
 
-        PERCPU.set_vmsa_for(create_vmsa_gpa, vmpl, cpu_id);
-        PERCPU.set_caa_for(create_ca_gpa, vmpl, cpu_id);
-
-        pgtable_unmap_pages(create_vmsa_va, VMSA_MAP_SIZE);
-
-        // Since the VA of the VMSA page is not known to the SVSM, a global ASID
-        // flush must be done.
-        invlpgb_all();
-        tlbsync();
-        (*vmsa).set_rax(SVSM_SUCCESS);
-
-        return;
-    }
-
-    // Error path when break from loop vs return from loop
-    //
-
-    // On error turn the page (back) into a non-VMSA page
-    grant_vmpl_access(create_vmsa_va, RMP_4K, vmpl as u8);
-
-    pgtable_unmap_pages(create_vmsa_va, VMSA_MAP_SIZE);
+    drop(create_vmsa_map);
 
     // Since the VA of the VMSA page is not known to the SVSM, a global ASID
     // flush must be done.
     invlpgb_all();
     tlbsync();
+
+    (*vmsa).set_rax(ret);
 }
 
 unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bool, bool) {
@@ -361,39 +373,44 @@ unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bo
         len = PAGE_2MB_SIZE;
     }
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, len) {
-        Ok(v) => v,
+    let map: MapGuard = match MapGuard::new_private(gpa, len) {
+        Ok(m) => m,
         Err(_e) => return (false, false),
     };
 
     if action == 0 {
         flush = true;
 
-        let ret: u32 = revoke_vmpl_access(va, page_size);
+        let ret: u32 = revoke_vmpl_access(map.va(), page_size);
         if ret != 0 {
             (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
             return (false, flush);
         }
     }
 
-    let ret: u32 = pvalidate(va.as_u64(), page_size, action);
+    let ret: u32 = pvalidate(map.va().as_u64(), page_size, action);
     if ret != 0 && (ret != PVALIDATE_CF_SET || ignore_cf == 0) {
         (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
         return (false, flush);
     }
 
     if action != 0 {
-        let ret: u32 = grant_vmpl_access(va, page_size, VMPL::Vmpl1 as u8);
+        let ret: u32 = grant_vmpl_access(map.va(), page_size, VMPL::Vmpl1 as u8);
         if ret != 0 {
             (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
             return (false, flush);
         }
     }
 
-    pgtable_unmap_pages(va, len);
-
     (*vmsa).set_rax(SVSM_SUCCESS);
     (true, flush)
+}
+
+fn is_in_calling_area(gpa: PhysAddr) -> bool {
+    let gfn: PhysFrame = PhysFrame::containing_address(gpa);
+    let caa_gpa: PhysAddr = unsafe { PERCPU.caa(VMPL::Vmpl1) };
+    let caa_gfn: PhysFrame = PhysFrame::containing_address(caa_gpa);
+    gfn == caa_gfn
 }
 
 unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
@@ -405,20 +422,25 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
         return;
     }
 
-    let va: VirtAddr = match pgtable_map_pages_private(gpa, CAA_MAP_SIZE) {
-        Ok(v) => v,
+    let map_res: Result<MapGuard, MapToError<_>> = match is_in_calling_area(gpa) {
+        true => MapGuard::new_private_persistent(gpa, CAA_MAP_SIZE),
+        false => MapGuard::new_private(gpa, CAA_MAP_SIZE),
+    };
+    let mut map: MapGuard = match map_res {
+        Ok(m) => m,
         Err(_e) => return,
     };
 
-    let request: *mut PvalidateRequest = va.as_mut_ptr();
-    if (*request).entries() == 0 || (*request).entries() < (*request).next() {
+    let va: VirtAddr = map.va();
+    let request: &mut PvalidateRequest = map.as_object_mut();
+    if request.entries() == 0 || request.entries() < request.next() {
         return;
     }
 
     // Request data cannot cross a 4K boundary
     let va_end: VirtAddr = va
         + size_of::<PvalidateRequest>()
-        + ((*request).entries() as usize * size_of::<PvalidateEntry>())
+        + (request.entries() as usize * size_of::<PvalidateEntry>())
         - 1_u64;
 
     if va.align_down(PAGE_SIZE) != va_end.align_down(PAGE_SIZE) {
@@ -427,7 +449,7 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
 
     let mut flush: bool = false;
     let mut e_va: VirtAddr = va + size_of::<PvalidateRequest>();
-    while (*request).next() < (*request).entries() {
+    while request.next() < request.entries() {
         let entry: *const PvalidateEntry = e_va.as_ptr();
 
         let (success, should_flush) = handle_pvalidate(vmsa, entry);
@@ -439,15 +461,10 @@ unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
         }
 
         e_va += size_of::<PvalidateEntry>();
-        (*request).set_next((*request).next() + 1);
+        request.set_next(request.next() + 1);
     }
 
-    //
-    // If the PVALIDATE structure is not part of the CA, ensure it is unmapped.
-    //
-    if gpa.align_down(PAGE_SIZE) != PERCPU.caa(VMPL::Vmpl1).align_down(PAGE_SIZE) {
-        pgtable_unmap_pages(va, CAA_MAP_SIZE);
-    }
+    drop(map);
 
     //
     // Since the VA of the pages is not known to the SVSM, a global ASID

@@ -13,7 +13,7 @@ use crate::*;
 
 use core::cmp::min;
 use core::mem::size_of;
-use core::ptr::copy_nonoverlapping;
+use core::slice;
 use uuid::Bytes;
 use uuid::Uuid;
 use x86_64::{PhysAddr, VirtAddr};
@@ -255,30 +255,27 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
     }
 
     let bios_secrets_pa: PhysAddr = PhysAddr::new(section.address_u64());
-
-    let bios_secrets_va: VirtAddr =
-        match pgtable_map_pages_private(bios_secrets_pa, section.size_u64()) {
-            Ok(v) => v,
+    let mut bios_secrets_map: MapGuard =
+        match MapGuard::new_private(bios_secrets_pa, section.size_u64()) {
+            Ok(m) => m,
             Err(_e) => return false,
         };
     let svsm_secrets_va: VirtAddr = get_svsm_secrets_page();
 
     // Copy the Secrets page to the BIOS Secrets page location
-    let bios_secrets: *mut SnpSecrets = bios_secrets_va.as_mut_ptr();
+    let bios_secrets: &mut SnpSecrets = bios_secrets_map.as_object_mut();
     let svsm_secrets: *const SnpSecrets = svsm_secrets_va.as_ptr();
     *bios_secrets = *svsm_secrets;
 
     // Clear the VMPCK0 key
-    (*bios_secrets).clear_vmpck0();
+    bios_secrets.clear_vmpck0();
 
     // Advertise the SVSM
-    (*bios_secrets).set_svsm_base(pgtable_va_to_pa(get_svsm_begin()).as_u64());
-    (*bios_secrets).set_svsm_size(get_svsm_end().as_u64() - get_svsm_begin().as_u64());
-    (*bios_secrets).set_svsm_caa(caa.as_u64());
-    (*bios_secrets).set_svsm_max_version(1);
-    (*bios_secrets).set_svsm_guest_vmpl(1);
-
-    pgtable_unmap_pages(bios_secrets_va, section.size_u64());
+    bios_secrets.set_svsm_base(pgtable_va_to_pa(get_svsm_begin()).as_u64());
+    bios_secrets.set_svsm_size(get_svsm_end().as_u64() - get_svsm_begin().as_u64());
+    bios_secrets.set_svsm_caa(caa.as_u64());
+    bios_secrets.set_svsm_max_version(1);
+    bios_secrets.set_svsm_guest_vmpl(1);
 
     let section: SnpSection = match find_snp_section(bios_info, SNP_SECT_CPUID) {
         Some(p) => p,
@@ -286,21 +283,20 @@ unsafe fn advertise_svsm_presence(bios_info: &mut BiosInfo, caa: PhysAddr) -> bo
     };
 
     let bios_cpuid_pa: PhysAddr = PhysAddr::new(section.address_u64());
+    let size: u64 = min(section.size_u64(), get_svsm_cpuid_page_size());
 
-    let bios_cpuid_va: VirtAddr = match pgtable_map_pages_private(bios_cpuid_pa, section.size_u64())
-    {
-        Ok(v) => v,
+    let mut bios_cpuid_map: MapGuard = match MapGuard::new_private(bios_cpuid_pa, size) {
+        Ok(m) => m,
         Err(_e) => return false,
     };
+    let bios_cpuid: &mut [u8] = bios_cpuid_map.as_bytes_mut();
+
     let svsm_cpuid_va: VirtAddr = get_svsm_cpuid_page();
+    let svsm_cpuid_ptr: *const u8 = svsm_cpuid_va.as_ptr();
+    let svsm_cpuid: &[u8] = unsafe { slice::from_raw_parts(svsm_cpuid_ptr, size as usize) };
 
     // Copy the CPUID page to the BIOS Secrets page location
-    let bios_cpuid: *mut u8 = bios_cpuid_va.as_mut_ptr();
-    let svsm_cpuid: *const u8 = svsm_cpuid_va.as_ptr();
-    let size: u64 = min(section.size_u64(), get_svsm_cpuid_page_size());
-    copy_nonoverlapping(svsm_cpuid, bios_cpuid, size as usize);
-
-    pgtable_unmap_pages(bios_cpuid_va, section.size_u64());
+    bios_cpuid.copy_from_slice(svsm_cpuid);
 
     true
 }
@@ -350,14 +346,18 @@ fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
     true
 }
 
-/// Locate BIOS, prepare it, advertise SVSM presence and run BIOS
-pub fn start_bios() {
-    let (bios_va, bios_size) = match fwcfg_map_bios() {
-        Some(t) => t,
+fn prepare_bios() {
+    let (bios_pa, bios_size) = match fwcfg_get_bios_area() {
+        Some(r) => r,
         None => vc_terminate_svsm_fwcfg(),
     };
 
-    let mut bios_info: BiosInfo = BiosInfo::new(bios_va, bios_size);
+    let bios_map: MapGuard = match MapGuard::new_private(bios_pa, bios_size) {
+        Ok(m) => m,
+        Err(_e) => vc_terminate_svsm_fwcfg(),
+    };
+
+    let mut bios_info: BiosInfo = BiosInfo::new(bios_map.va(), bios_size);
     if !parse_bios_guid_table(&mut bios_info) {
         vc_terminate_svsm_bios();
     }
@@ -376,8 +376,11 @@ pub fn start_bios() {
     if !smp_prepare_bios_vmpl(caa) {
         vc_terminate_svsm_general();
     }
+}
 
-    pgtable_unmap_pages(bios_va, bios_size);
+/// Locate BIOS, prepare it, advertise SVSM presence and run BIOS
+pub fn start_bios() {
+    prepare_bios();
 
     if !smp_run_bios_vmpl() {
         vc_terminate_svsm_general();
