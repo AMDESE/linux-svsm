@@ -31,19 +31,26 @@ SVSM_MEM	:= 0x10000000
 LDS_FLAGS	+= -DSVSM_GPA="$(SVSM_GPA)"
 LDS_FLAGS	+= -DSVSM_MEM="$(SVSM_MEM)"
 
-.PHONY: all doc prereq clean superclean
+EXT_LIBS := external/libcrt/libcrt.a
 
-all: .prereq svsm.bin
+.PHONY: all doc prereq clean clean_all superclean libcrt
+
+all: .prereq libcrt svsm.bin
 
 doc: .prereq
 	cargo doc --open
+
+external/libcrt/libcrt.a: libcrt
+
+libcrt:
+	$(MAKE) -C external/libcrt
 
 svsm.bin: svsm.bin.elf
 	objcopy -g -O binary $< $@
 
 # "-Wl,-u,malloc" prevents the linker from removing the wrapper.rs symbols
-svsm.bin.elf: $(OBJS) src/start/svsm.lds
-	$(GCC) $(LD_FLAGS) -o $@ $(OBJS) -Wl,-u,malloc
+svsm.bin.elf: $(EXT_LIBS) $(OBJS) src/start/svsm.lds
+	$(GCC) $(LD_FLAGS) -o $@ $(OBJS) -Wl,-u,malloc -Wl,--start-group $(EXT_LIBS) -Wl,--end-group
 
 %.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/protocols/*.rs src/util/*.rs
 	@xargo build --features $(FEATURES)
@@ -75,5 +82,8 @@ clean:
 	rm -rf $(TARGET_DIR)
 	rm -f src/start/svsm.lds
 
-superclean: clean
+clean_all: clean
+	$(MAKE) -C external/libcrt clean
+
+superclean: clean_all
 	rm -f .prereq
