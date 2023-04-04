@@ -10,11 +10,13 @@ use crate::globals::*;
 use crate::mem::{pgtable_pa_to_va, pgtable_va_to_pa};
 use crate::pgtable::*;
 use crate::util::locking::SpinLock;
+use crate::util::util::memset;
 use crate::vc_terminate_svsm_enomem;
 use crate::STATIC_ASSERT;
+
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem::size_of;
-use core::ptr;
+use core::{cmp, ptr};
 use x86_64::addr::{align_up, PhysAddr, VirtAddr};
 use x86_64::structures::paging::frame::PhysFrame;
 
@@ -113,6 +115,10 @@ impl AllocatedInfo {
             .try_into()
             .unwrap();
         AllocatedInfo { order: order }
+    }
+
+    pub fn get_order(&self) -> usize {
+        self.order
     }
 }
 
@@ -618,6 +624,49 @@ pub fn mem_allocate(size: usize) -> Result<VirtAddr, ()> {
     unsafe { ALLOCATOR.slab_alloc(size) }
 }
 
+/// Allocate 'size' bytes and sets the memory to zero
+pub fn mem_callocate(size: usize) -> Result<VirtAddr, ()> {
+    let result: Result<VirtAddr, ()> = mem_allocate(size);
+
+    if let Ok(va) = result {
+        memset(va.as_mut_ptr::<u8>(), 0, size);
+        return Ok(va);
+    }
+
+    Err(())
+}
+
+/// Change the size of memory pointed by va to size. If success it always
+/// free the old va, however it returns Ok(new_va) if size > 0 or
+/// Ok(VirtAddr::zero) if size == 0.
+pub fn mem_reallocate(va: VirtAddr, size: usize) -> Result<VirtAddr, ()> {
+    if va.is_null() {
+        return mem_allocate(size);
+    }
+    if size == 0 {
+        mem_free(va);
+        return Ok(VirtAddr::zero());
+    }
+
+    let bytes: usize = sizeof_alloc(va)?;
+    let result: Result<VirtAddr, ()> = mem_allocate(size);
+    if let Ok(new_va) = result {
+        // Copy from start the minimum of the old and new sizes. If the
+        // new size is larger than the old size, the added memory will
+        // *not* be initialized.
+        unsafe {
+            ptr::copy_nonoverlapping(
+                va.as_ptr::<u8>(),
+                new_va.as_mut_ptr::<u8>(),
+                cmp::min(bytes, size),
+            )
+        };
+        mem_free(va);
+    }
+
+    result
+}
+
 pub fn mem_free_frames(frame: PhysFrame, _count: u64) {
     let vaddr: VirtAddr = pgtable_pa_to_va(frame.start_address());
     free_page(vaddr);
@@ -710,6 +759,10 @@ impl SlabPage {
 
     pub fn get_free(&self) -> u16 {
         self.free
+    }
+
+    pub fn get_item_size(&self) -> u16 {
+        self.item_size
     }
 
     pub fn get_next_page(&self) -> VirtAddr {
@@ -1132,6 +1185,24 @@ fn root_mem_init(pstart: PhysAddr, vstart: VirtAddr, page_count: usize) {
     if let Err(_e) = SLAB_PAGE_SLAB.lock().init() {
         panic!("Failed to initialize SLAB_PAGE_SLAB");
     }
+}
+
+/// Get the memory size allocated to a VirtAddr
+fn sizeof_alloc(va: VirtAddr) -> Result<usize, ()> {
+    let info: SvsmPageInfo = ROOT_MEM.lock().get_page_info(va)?;
+
+    let alloc_size: usize = match info {
+        SvsmPageInfo::Allocated(ai) => (ai.get_order() as u64 * PAGE_SIZE) as usize,
+        SvsmPageInfo::SlabPage(si) => {
+            let slab: *mut Slab = si.slab.as_u64() as *mut Slab;
+            unsafe { (*slab).page.get_item_size() as usize }
+        }
+        _ => {
+            return Err(());
+        }
+    };
+
+    Ok(alloc_size)
 }
 
 unsafe fn __mem_init() {
