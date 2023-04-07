@@ -86,3 +86,43 @@ impl<T> SpinLock<T> {
         self.holder.fetch_add(1, Ordering::Release);
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_spin_lock() {
+        let lock = SpinLock::new(0);
+
+        // Acquire the lock and modify the data
+        {
+            let mut guard = lock.lock();
+            *guard += 1;
+        }
+
+        // Verify that the data was correctly modified
+        {
+            let guard = lock.lock();
+            assert_eq!(*guard, 1);
+        }
+
+        // Unlock the lock
+        drop(lock);
+
+        // Verify that the lock is now available after
+        // it has been dropped
+        let lock = SpinLock::new(0);
+        {
+            let mut guard = lock.lock();
+            *guard += 1;
+        }
+
+        // Verify that the data was correctly modified
+        {
+            let guard = lock.lock();
+            assert_eq!(*guard, 1);
+        }
+    }
+}
