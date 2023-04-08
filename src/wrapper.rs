@@ -16,6 +16,7 @@ use crate::prints;
 use core::{ptr, slice, str};
 use x86_64::VirtAddr;
 
+#[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn malloc(size: cty::c_ulong) -> *mut cty::c_void {
     if let Ok(va) = mem_allocate(size as usize) {
@@ -24,6 +25,7 @@ pub extern "C" fn malloc(size: cty::c_ulong) -> *mut cty::c_void {
     ptr::null_mut()
 }
 
+#[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn calloc(items: cty::c_ulong, size: cty::c_ulong) -> *mut cty::c_void {
     if let Some(num_bytes) = items.checked_mul(size as u64) {
@@ -34,6 +36,7 @@ pub extern "C" fn calloc(items: cty::c_ulong, size: cty::c_ulong) -> *mut cty::c
     ptr::null_mut()
 }
 
+#[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn realloc(p: *mut cty::c_void, size: cty::c_ulong) -> *mut cty::c_void {
     if let Ok(va) = mem_reallocate(VirtAddr::new(p as u64), size as usize) {
@@ -42,6 +45,7 @@ pub extern "C" fn realloc(p: *mut cty::c_void, size: cty::c_ulong) -> *mut cty::
     ptr::null_mut()
 }
 
+#[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn free(p: *mut cty::c_void) {
     if p.is_null() {
@@ -60,6 +64,7 @@ pub extern "C" fn serial_out(s: *const cty::c_char, size: cty::c_int) {
     }
 }
 
+#[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
     vc_terminate_svsm_general();
