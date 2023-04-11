@@ -1,0 +1,22 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+      - name: Prepare tests
+        run: rustup component add rust-src --toolchain nightly
+      - name: Run tests
+        run: cargo test --target=x86_64-unknown-linux-gnu -Z build-std
