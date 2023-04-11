@@ -15,7 +15,7 @@ use core::cmp::min;
 use core::mem::size_of;
 use core::slice;
 use uuid::Bytes;
-use uuid::Uuid;
+use uuid::{uuid, Uuid};
 use x86_64::{PhysAddr, VirtAddr};
 
 /// 2
@@ -150,9 +150,9 @@ impl SnpSecrets {
 }
 
 /// 96b582de-1fb2-45f7-baea-a366c55a082d
-const OVMF_TABLE_GUID: &str = "96b582de-1fb2-45f7-baea-a366c55a082d";
+const OVMF_TABLE_GUID: Uuid = uuid!("96b582de-1fb2-45f7-baea-a366c55a082d");
 /// dc886566-984a-4798-A75e-5585a7bf67cc
-const OVMF_SNP_ENTRY_GUID: &str = "dc886566-984a-4798-A75e-5585a7bf67cc";
+const OVMF_SNP_ENTRY_GUID: Uuid = uuid!("dc886566-984a-4798-A75e-5585a7bf67cc");
 
 /// 0x56455341 ("ASEV" in little endian integer)
 const SNP_METADATA_SIGNATURE: u32 = 0x56455341; /* "A", "S", "E", "V" in little endian integer */
@@ -192,14 +192,9 @@ unsafe fn __find_bios_guid_entry(
     return None;
 }
 
-fn find_bios_guid_entry(bios_info: &mut BiosInfo, guid: &str) -> Option<u64> {
+fn find_bios_guid_entry(bios_info: &mut BiosInfo, target_guid: Uuid) -> Option<u64> {
     let mut avail_len: u64 = bios_info.guid_table.len() as u64;
     let mut p: u64 = bios_info.guid_table.end();
-
-    let target_guid: Uuid = match Uuid::parse_str(guid) {
-        Ok(g) => g,
-        Err(_e) => vc_terminate_svsm_bios(),
-    };
 
     unsafe { __find_bios_guid_entry(bios_info, target_guid, &mut avail_len, &mut p) }
 }
@@ -319,17 +314,12 @@ fn parse_bios_guid_table(bios_info: &mut BiosInfo) -> bool {
         return false;
     }
 
-    let ovmf_guid: Uuid = match Uuid::parse_str(OVMF_TABLE_GUID) {
-        Ok(g) => g,
-        Err(_e) => return false,
-    };
-
     unsafe {
         let bios: *const u8 = (bios_info.va() + bios_info.size() - BIOS_TABLE_END) as *const u8;
         let bytes: *const Bytes = (bios as u64 - GUID_SIZE) as *const Bytes;
 
         let guid: Uuid = Uuid::from_bytes_le(*bytes);
-        if guid != ovmf_guid {
+        if guid != OVMF_TABLE_GUID {
             return false;
         }
 
