@@ -121,6 +121,13 @@ unsafe fn address_valid(gfn: PhysFrame, page_size: u32) -> bool {
         gpa_end += PAGE_2MB_SIZE;
     }
 
+    // Ensure that the address doesn't contain the C-bit.
+    if gpa.as_u64() & get_sev_encryption_mask() != 0
+        || gpa_end.as_u64() & get_sev_encryption_mask() != 0
+    {
+        return false;
+    }
+
     let svsm_begin_gpa: PhysAddr = pgtable_va_to_pa(get_svsm_begin());
     let svsm_end_gpa: PhysAddr = pgtable_va_to_pa(get_svsm_end());
     if gpa < svsm_end_gpa && gpa_end > svsm_begin_gpa {
