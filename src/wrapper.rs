@@ -70,7 +70,7 @@ mod test_wrappers {
     extern "C" {
         fn malloc(size: cty::c_ulong) -> *mut cty::c_void;
         fn calloc(items: cty::c_ulong, size: cty::c_ulong) -> *mut cty::c_void;
-        fn realloc(items: cty::c_ulong, size: cty::c_ulong) -> *mut cty::c_void;
+        fn realloc(p: *mut cty::c_void, size: cty::c_ulong) -> *mut cty::c_void;
         fn free(ptr: *mut cty::c_void);
     }
 }
