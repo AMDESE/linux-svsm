@@ -28,8 +28,7 @@ SEV_POLICY=""
 SNP_FLAGS="0"
 SNP_UPM="1"
 DISCARD=""
-
-QEMU_INSTALL_DIR="./usr/local/bin/"
+QEMU="./usr/local/bin/qemu-system-x86_64"
 
 usage() {
 	echo "$0 [options]"
@@ -62,6 +61,7 @@ usage() {
 	echo " -allow-debug  allow debugging the VM"
 	echo " -bridge       use the specified bridge device for networking"
 	echo " -novirtio     do not use virtio devices"
+	echo " -qemu         qemu binary to use"
 	exit 1
 }
 
@@ -240,6 +240,9 @@ while [ -n "$1" ]; do
 				;;
 		-novirtio)      USE_VIRTIO=""
 				;;
+		-qemu)          QEMU="$2"
+				shift
+				;;
 		*) 		usage;;
 	esac
 	shift
@@ -292,7 +295,7 @@ echo 'always' > /sys/kernel/mm/transparent_hugepage/shmem_enabled
 QEMU_CMDLINE=/tmp/cmdline.$$
 rm -rf ${QEMU_CMDLINE}
 
-add_opts "${QEMU_INSTALL_DIR}qemu-system-x86_64 -enable-kvm"
+add_opts "${QEMU} -enable-kvm"
 
 [ -n "$CPU_FEATURES" ] && CPU="${CPU},$CPU_FEATURES"
 CPU="$CPU,host-phys-bits=true"
