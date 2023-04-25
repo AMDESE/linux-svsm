@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -179,8 +179,13 @@ pub struct Vmsa {
     reserved5: [u8; 24],
 
     rax: u64,
+    star: u64,
 
-    reserved6: [u8; 104],
+    reserved6a: [u8; 16],
+
+    sfmask: u64,
+
+    reserved6b: [u8; 72],
 
     gpat: u64,
 
@@ -290,6 +295,8 @@ impl Vmsa {
     funcs!(mxcsr, u32);
     funcs!(vmpl, u8);
     funcs!(rax, u64);
+    funcs!(star, u64);
+    funcs!(sfmask, u64);
     funcs!(rbx, u64);
     funcs!(rcx, u64);
     funcs!(rdx, u64);

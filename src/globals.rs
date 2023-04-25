@@ -9,6 +9,22 @@
 use crate::BIT;
 use x86_64::addr::VirtAddr;
 
+// CPL0 and CPL3 segment bases, and SYSCALL EIP
+/// 0xc0000081
+pub const MSR_STAR: u32 = 0xc0000081;
+
+// Contains kernel's RIP SYSCALL entry
+/// 0xC0000082
+pub const MSR_LSTAR: u32 = 0xC0000082;
+
+// Low 32 bits are SYSCALL flag mask (clearing rFLAGS)
+/// 0xC0000084
+pub const MSR_SFMASK: u32 = 0xC0000084;
+
+// Value for MSR SFMASK to disable interrupts during syscalls
+/// 0x200
+pub const SFMASK_INTERRUPTS_DISABLED: u64 = BIT!(9);
+
 // GHCB standard termination constants
 /// 0
 pub const GHCB_REASON_CODE_SET: u64 = 0;

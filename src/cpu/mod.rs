@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -16,6 +16,8 @@ pub mod percpu;
 pub mod smp;
 /// Auxiliary assembly functions
 pub mod sys;
+/// System call initialization
+pub mod syscall;
 /// Per-CPU TSS support
 pub mod tss;
 /// VC functions
@@ -27,5 +29,6 @@ pub use crate::cpu::idt::*;
 pub use crate::cpu::percpu::*;
 pub use crate::cpu::smp::*;
 pub use crate::cpu::sys::*;
+pub use crate::cpu::syscall::*;
 pub use crate::cpu::tss::*;
 pub use crate::cpu::vc::*;

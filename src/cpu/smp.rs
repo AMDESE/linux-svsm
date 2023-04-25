@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -180,6 +180,11 @@ fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
         (*vmsa).set_cr4(SVSM_CR4);
         (*vmsa).set_efer(SVSM_EFER);
         (*vmsa).set_rflags(SVSM_RFLAGS);
+
+        // Prepare for system calls
+        (*vmsa).set_star(syscall_gdt());
+        (*vmsa).set_sfmask(SFMASK_INTERRUPTS_DISABLED);
+
         (*vmsa).set_dr6(SVSM_DR6);
         (*vmsa).set_dr7(SVSM_DR7);
         (*vmsa).set_gpat(SVSM_GPAT);
