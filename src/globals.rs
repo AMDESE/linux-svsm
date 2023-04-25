@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -190,6 +190,9 @@ extern_symbol_virtaddr_ro!(early_ghcb, u64);
 extern_symbol_virtaddr_ro!(early_tss, u64);
 extern_symbol_u64_ro!(gdt64_tss, u64);
 extern_symbol_u64_ro!(gdt64_kernel_cs, u64);
+extern_symbol_u64_ro!(gdt64_user32_cs, u64);
+extern_symbol_u64_ro!(gdt64_user64_cs, u64);
+extern_symbol_u64_ro!(gdt64_user64_ds, u64);
 extern_symbol_virtaddr_ro!(dyn_mem_begin, u64);
 extern_symbol_virtaddr_ro!(dyn_mem_end, u64);
 extern_symbol_u64_rw!(hl_main, u64);

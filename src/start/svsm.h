@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  */
@@ -90,6 +90,12 @@ _name:
 #define SVSM_KERNEL_CS_ATTR		0x00af9a000000ffff
 #define SVSM_KERNEL_DS_SELECTOR		(kernel_ds - gdt64)
 #define SVSM_KERNEL_DS_ATTR		0x00cf92000000ffff
+#define SVSM_USER32_CS_SELECTOR		(user32_cs - gdt64) | 0x3
+#define SVSM_USER32_CS_ATTR		0x00cffa000000ffff
+#define SVSM_USER_DS_SELECTOR		(user64_ds - gdt64) | 0x3
+#define SVSM_USER_DS_ATTR		0x00cff2000000ffff
+#define SVSM_USER_CS_SELECTOR		(user64_cs - gdt64) | 0x3
+#define SVSM_USER_CS_ATTR		0x00affa000000ffff
 
 #define SVSM_TSS_SELECTOR		(tss - gdt64)
 #define SVSM_TSS_ATTR0			0x0080890000000000

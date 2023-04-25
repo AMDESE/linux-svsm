@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  */
@@ -235,7 +235,12 @@ kernel_cs:
 	.quad	SVSM_KERNEL_CS_ATTR	/* 64-bit code segment (CPL0) */
 kernel_ds:
 	.quad	SVSM_KERNEL_DS_ATTR	/* 64-bit data segment (CPL0) */
-
+user32_cs:
+	.quad	SVSM_USER32_CS_ATTR	/* 32-bit code segment (CPL3) */
+user64_ds:
+	.quad	SVSM_USER_DS_ATTR	/* 64-bit data segment (CPL3) */
+user64_cs:
+	.quad	SVSM_USER_CS_ATTR	/* 64-bit code segment (CPL3) */
 tss:
 	.quad	SVSM_TSS_ATTR0		/* 64-bit TSS */
 	.quad	SVSM_TSS_ATTR1		/* TSS (Second half) */
@@ -246,6 +251,15 @@ GLOBAL(gdt64_kernel_cs)
 
 GLOBAL(gdt64_kernel_ds)
 	.quad	SVSM_KERNEL_DS_SELECTOR
+
+GLOBAL(gdt64_user32_cs)
+	.quad	SVSM_USER32_CS_SELECTOR
+
+GLOBAL(gdt64_user64_ds)
+	.quad	SVSM_USER_DS_SELECTOR
+
+GLOBAL(gdt64_user64_cs)
+	.quad	SVSM_USER_CS_SELECTOR
 
 GLOBAL(gdt64_tss)
 	.quad	SVSM_TSS_SELECTOR
