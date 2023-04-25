@@ -17,6 +17,76 @@
 #define SVSM_PTE_ENTRY(x)	(CBIT(x) + 0x03)
 
 	.code64
+svsm_load:
+/*
+ * SVSM GUID Table
+ *
+ * SVSM GUID Envelope: 81384fea-ad48-4eb6-af4f-6ac49316df2b
+ */
+svsm_guids_start:
+	.byte	0xea, 0x4f, 0x38, 0x81, 0x48, 0xad, 0xb6, 0x4e
+	.byte	0xaf, 0x4f, 0x6a, 0xc4, 0x93, 0x16, 0xdf, 0x2b
+	.word	svsm_guids_end - svsm_guids_start
+
+/* SVSM INFO GUID: a789a612-0597-4c4b-a49f-cbb1fe9d1ddd */
+svsm_guid_info:
+	.byte	0x12, 0xa6, 0x89, 0xa7, 0x97, 0x05, 0x4b, 0x4c
+	.byte	0xa4, 0x9f, 0xcb, 0xb1, 0xfe, 0x9d, 0x1d, 0xdd
+	.word	svsm_guid_info_end - svsm_guid_info			/* GUID area length */
+
+	.quad	SVSM_GPA_ASM						/* SVSM load address */
+	.quad	SVSM_MEM_ASM						/* SVSM memory footprint */
+	.quad	CBIT(GPA(p4d))						/* SVSM pagetable (4-level) */
+	.quad	gdt64							/* SVSM GDT */
+	.word	SVSM_GDT_LIMIT						/* SVSM GDT limit */
+	.quad	idt64							/* SVSM IDT */
+	.word	SVSM_IDT_LIMIT						/* SVSM IDT limit */
+	.word	SVSM_KERNEL_CS_SELECTOR					/* SVSM 64-bit CS slot */
+	.quad	SVSM_KERNEL_CS_ATTR					/* SVSM 64-bit CS attributes */
+	.quad	code_64							/* BSP start RIP */
+	.quad	SVSM_EFER						/* SVSM EFER value */
+	.quad	SVSM_CR0						/* SVSM CR0 value */
+	.quad	SVSM_CR4						/* SVSM CR4 value */
+svsm_guid_info_end:
+
+/* SVSM SEV SNP MetaData GUID: be30189b-ab44-4a97-82dd-ea813941047e */
+svsm_guid_snp:
+	.byte	0x9b, 0x18, 0x30, 0xbe, 0x44, 0xab, 0x97, 0x4a
+	.byte	0x82, 0xdd, 0xea, 0x81, 0x39, 0x41, 0x04, 0x7e
+	.word	svsm_guid_snp_end - svsm_guid_snp			/* GUID area length */
+
+	.long	svsm_snp_metadata - svsm_guids_start			/* Offset to metadata */
+svsm_guid_snp_end:
+
+svsm_guids_end:
+
+/*
+ * SVSM SEV SNP MetaData
+ *   (similar to OVMF format, but addresses expanded to 8 bytes)
+ */
+svsm_snp_metadata:
+	.byte	'S', 'V', 'S', 'M'					/* Signature */
+	.long	svsm_snp_metadata_end - svsm_snp_metadata		/* Length */
+	.long	1							/* Version */
+	.long	(svsm_snp_metadata_end - svsm_snp_sections ) / 16	/* Section Count */
+
+svsm_snp_sections:
+	/* SEV SNP Secrets Page */
+	.quad	GPA(SVSM_SNP_SECRETS_PAGE_BASE)
+	.long	SVSM_SNP_SECRETS_PAGE_SIZE
+	.long	2
+
+	/* SEV SNP CPUID Page */
+	.quad	GPA(SVSM_SNP_CPUID_PAGE_BASE)
+	.long	SVSM_SNP_CPUID_PAGE_SIZE
+	.long	3
+
+	/* BIOS BSP VMSA Page */
+	.quad	GPA(SVSM_SNP_BIOS_BSP_PAGE_BASE)
+	.long	SVSM_SNP_BIOS_BSP_PAGE_SIZE
+	.long	5
+svsm_snp_metadata_end:
+
 GLOBAL(code_64)
 	cli
 
@@ -56,7 +126,7 @@ insn:
 
 	/* Validate that the build load address matches the actual load address */
 	movq	$0x2f100, %rsi
-	leaq	code_64(%rip), %rax
+	leaq	svsm_load(%rip), %rax
 	subq	%rbx, %rax
 	movq	$SVSM_GPA_ASM, %rcx
 	cmpq	%rax, %rcx
@@ -392,77 +462,8 @@ GLOBAL(svsm_cpuid_page_size)
 GLOBAL(bios_vmsa_page)
 	.quad	SVSM_SNP_BIOS_BSP_PAGE_BASE
 
-/*
- * SVSM GUID Table
- */
-	.section .data.guids
-
-	/* Place the GUIDs at the end of the page */
+	.section .data.padding
+data_pad_start:
+	.fill	4096 - ((data_pad_end - data_pad_start) % 4096), 1, 0
 	.balign	4096
-	.fill	4096 - ((svsm_guids_end - svsm_fill_end) % 4096), 1, 0
-svsm_fill_end:
-
-/*
- * SVSM SEV SNP MetaData
- *   (similar to OVMF format, but addresses expanded to 8 bytes)
- */
-svsm_snp_metadata:
-	.byte	'S', 'V', 'S', 'M'					/* Signature */
-	.long	svsm_snp_metadata_end - svsm_snp_metadata		/* Length */
-	.long	1							/* Version */
-	.long	(svsm_snp_metadata_end - svsm_snp_sections ) / 16	/* Section Count */
-
-svsm_snp_sections:
-	/* SEV SNP Secrets Page */
-	.quad	GPA(SVSM_SNP_SECRETS_PAGE_BASE)
-	.long	SVSM_SNP_SECRETS_PAGE_SIZE
-	.long	2
-
-	/* SEV SNP CPUID Page */
-	.quad	GPA(SVSM_SNP_CPUID_PAGE_BASE)
-	.long	SVSM_SNP_CPUID_PAGE_SIZE
-	.long	3
-
-	/* BIOS BSP VMSA Page */
-	.quad	GPA(SVSM_SNP_BIOS_BSP_PAGE_BASE)
-	.long	SVSM_SNP_BIOS_BSP_PAGE_SIZE
-	.long	5
-svsm_snp_metadata_end:
-
-/*
- * SVSM GUID Envelope: 81384fea-ad48-4eb6-af4f-6ac49316df2b
- */
-svsm_guids_start:
-
-/* SVSM SEV SNP MetaData GUID: be30189b-ab44-4a97-82dd-ea813941047e */
-svsm_guid_snp:
-	.long	svsm_guids_end - svsm_snp_metadata			/* Offset to metadata */
-	.word	svsm_guid_snp_end - svsm_guid_snp
-	.byte	0x9b, 0x18, 0x30, 0xbe, 0x44, 0xab, 0x97, 0x4a
-	.byte	0x82, 0xdd, 0xea, 0x81, 0x39, 0x41, 0x04, 0x7e
-svsm_guid_snp_end:
-
-/* SVSM INFO GUID: a789a612-0597-4c4b-a49f-cbb1fe9d1ddd */
-svsm_guid_info:
-	.quad	SVSM_GPA_ASM						/* SVSM load address */
-	.quad	SVSM_MEM_ASM						/* SVSM memory footprint */
-	.quad	CBIT(GPA(p4d))						/* SVSM pagetable (4-level) */
-	.quad	gdt64							/* SVSM GDT */
-	.word	SVSM_GDT_LIMIT						/* SVSM GDT limit */
-	.quad	idt64							/* SVSM IDT */
-	.word	SVSM_IDT_LIMIT						/* SVSM IDT limit */
-	.word	SVSM_KERNEL_CS_SELECTOR					/* SVSM 64-bit CS slot */
-	.quad	SVSM_KERNEL_CS_ATTR					/* SVSM 64-bit CS attributes */
-	.quad	code_64							/* BSP start RIP */
-	.quad	SVSM_EFER						/* SVSM EFER value */
-	.quad	SVSM_CR0						/* SVSM CR0 value */
-	.quad	SVSM_CR4						/* SVSM CR4 value */
-	.word	svsm_guid_info_end - svsm_guid_info
-	.byte	0x12, 0xa6, 0x89, 0xa7, 0x97, 0x05, 0x4b, 0x4c
-	.byte	0xa4, 0x9f, 0xcb, 0xb1, 0xfe, 0x9d, 0x1d, 0xdd
-svsm_guid_info_end:
-
-	.word	svsm_guids_end - svsm_guids_start
-	.byte	0xea, 0x4f, 0x38, 0x81, 0x48, 0xad, 0xb6, 0x4e
-	.byte	0xaf, 0x4f, 0x6a, 0xc4, 0x93, 0x16, 0xdf, 0x2b
-svsm_guids_end:
+data_pad_end:
