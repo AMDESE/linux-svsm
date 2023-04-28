@@ -4,39 +4,38 @@ GCC		= gcc
 
 SHELL		:= /bin/bash
 
-A_FLAGS		:= -D__ASSEMBLY__
+A_FLAGS		:= -D__ASSEMBLY__ -I../include
 
-C_FLAGS		:= -g -O2
+C_FLAGS		:= -g -O2 -I../include
 C_FLAGS		+= -m64 -march=x86-64 -mno-sse2
 C_FLAGS		+= -fno-stack-protector
 C_FLAGS		+= -ffreestanding
 C_FLAGS		+= -Wall -Wstrict-prototypes -Wno-address-of-packed-member
 
+LD_SCRIPT	:= src/start/cpl0.lds
+
 LD_FLAGS	:= -m64
 LD_FLAGS	+= -nostdlib
-LD_FLAGS	+= -Wl,-Tsrc/start/svsm.lds -Wl,--build-id=none
+LD_FLAGS	+= -Wl,-T$(LD_SCRIPT) -Wl,--build-id=none
+
+LDS_FLAGS	:= -DSVSM_GPA="$(SVSM_GPA)"
+LDS_FLAGS	+= -DSVSM_MEM="$(SVSM_MEM)"
+LDS_FLAGS	+= -DCPL3_SIZE="$(CPL3_SIZE)"
 
 TARGET_DIR	:= target
 TARGET		:= $(TARGET_DIR)/svsm-target/debug
 
 OBJS		:= src/start/start.o
-OBJS		+= $(TARGET)/liblinux_svsm.a
+OBJS		+= $(TARGET)/libsvsm_cpl0.a
 
-FEATURES	:= ""
-
-## Memory layout
-
-SVSM_GPA	:= 0x8000000000
-SVSM_MEM	:= 0x10000000
-LDS_FLAGS	+= -DSVSM_GPA="$(SVSM_GPA)"
-LDS_FLAGS	+= -DSVSM_MEM="$(SVSM_MEM)"
+ELF_FILE	:= cpl0.bin.elf
 
 EXT_LIBS := external/libcrt/libcrt.a
 EXT_LIBS += external/openssl/libcrypto.a
 
 .PHONY: all doc prereq clean clean_all superclean libcrt libcrypto
 
-all: .prereq libcrt libcrypto svsm.bin
+all: .prereq libcrt libcrypto cpl0.bin
 
 doc: .prereq
 	cargo doc --open
@@ -51,24 +50,32 @@ external/openssl/libcrypto.a: libcrypto
 libcrypto: external/openssl/Makefile libcrt
 	$(MAKE) -C external/openssl -j$$(nproc)
 
-svsm.bin: svsm.bin.elf
+cpl0.bin: cpl0.bin.elf
 	objcopy -g -O binary $< $@
 
 # "-Wl,-u,malloc" prevents the linker from removing the wrapper.rs symbols
-svsm.bin.elf: $(EXT_LIBS) $(OBJS) src/start/svsm.lds
+cpl0.bin.elf: $(EXT_LIBS) $(OBJS) $(LD_SCRIPT)
 	$(GCC) $(LD_FLAGS) -o $@ $(OBJS) -Wl,-u,malloc -Wl,--start-group $(EXT_LIBS) -Wl,--end-group
 
 %.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/protocols/*.rs src/util/*.rs
+ifeq ($(strip $(FEATURES)),)
+	@xargo build
+else
 	@xargo build --features $(FEATURES)
+endif
 
-%.o: %.S src/start/svsm.h
+%.o: %.S ../include/svsm.h
 	$(GCC) $(C_FLAGS) $(LDS_FLAGS) $(A_FLAGS) -c -o $@ $<
 
-%.lds: %.lds.S src/start/svsm.h
+%.lds: %.lds.S ../include/svsm.h
 	$(GCC) $(A_FLAGS) $(LDS_FLAGS) -E -P -o $@ $<
 
 test:
+ifeq ($(strip $(FEATURES)),)
+	cargo test --target=x86_64-unknown-linux-gnu -Z build-std
+else
 	cargo test --features $(FEATURES) --target=x86_64-unknown-linux-gnu -Z build-std
+endif
 
 prereq: .prereq
 
@@ -140,9 +147,9 @@ external/openssl/Makefile:
 
 clean:
 	@xargo clean 
-	rm -f svsm.bin svsm.bin.elf $(OBJS)
+	rm -f cpl0.bin cpl0.bin.elf $(OBJS)
 	rm -rf $(TARGET_DIR)
-	rm -f src/start/svsm.lds
+	rm -f $(LD_SCRIPT)
 
 clean_all: clean
 	$(MAKE) -C external/libcrt clean
@@ -150,3 +157,4 @@ clean_all: clean
 
 superclean: clean_all
 	rm -f .prereq
+

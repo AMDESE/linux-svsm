@@ -6,7 +6,7 @@
  *	   Carlos Bilbao <carlos.bilbao@amd.com>
  */
 
-#include "svsm.h"
+#include <svsm.h>
 
 OUTPUT_FORMAT("elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)

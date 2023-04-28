@@ -7,7 +7,8 @@
 3. [Installation](#install)
 4. [Running Linux SVSM](#run)
 5. [Contribution](#contribute)
-6. [Authors and License](#authors)
+6. [Linux SVSM userspace](#cpl3)
+7. [Authors and License](#authors)
 
 ## What is this magic? <a name="introduction"></a>
 
@@ -211,6 +212,11 @@ By default, SVSM lives at 512 GB (SVSM\_GPA), and has 256 MB of memory
 ```
 
 The SVSM page table applies an offset to its virtual addresses.
+
+## Linux SVSM userspace <a name="cpl3"></a>
+
+This branch is able to run portions of SVSM in userspace, but requires
+patching Qemu with the patch qemu\_binaries.patch.
 
 ## Contribution <a name="contribute"></a>
 
