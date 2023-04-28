@@ -86,7 +86,8 @@ fn jump_to_user(user_stack_va: VirtAddr, user_code_va: VirtAddr, user_code_end: 
     let code_pages: u64 = ((user_code_end.as_u64() - user_code_va.as_u64()) / PAGE_SIZE) + 1;
 
     let new_ucode_va: VirtAddr = VirtAddr::new(get_cpl3_start());
-    let new_ucode_end: VirtAddr = VirtAddr::new(get_cpl3_start() + (code_pages - 1_u64) * PAGE_SIZE);
+    let new_ucode_end: VirtAddr =
+        VirtAddr::new(get_cpl3_start() + (code_pages - 1_u64) * PAGE_SIZE);
 
     let new_stack_va: VirtAddr = new_ucode_va - stack_size - PAGE_SIZE;
 

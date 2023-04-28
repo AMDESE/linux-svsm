@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Author: Carlos Bilbao <carlos.bilbao@amd.com>
  *
@@ -11,6 +11,15 @@
 // wrap system calls requests
 //
 use core::arch::asm;
+
+// Don't forget to update IDs on the kernel side
+// of things (cpl0/src/globals.rs)
+#[repr(u32)]
+pub enum SystemCalls {
+    GetNextRequest = 0,
+    SetRequestFinished = 1,
+    MaxNumberSystemCalls = 2,
+}
 
 #[inline]
 pub fn syscall0(id: u32) -> u64 {

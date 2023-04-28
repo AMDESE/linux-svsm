@@ -14,9 +14,12 @@ pub const MSR_KERNEL_GS_BASE: u32 = 0xc0000102;
 
 // Total number of implemented system calls
 /// 0
-pub const MAX_SYSCALLS: u32 = 0;
+pub const MAX_SYSCALLS: u32 = 2;
 
 // New system call ids here. Should be POSIX compliant
+
+pub const GET_NEXT_REQUEST: u32 = 0;
+pub const SET_REQUEST_FINISHED: u32 = 1;
 
 // Possible return messages of the system calls
 

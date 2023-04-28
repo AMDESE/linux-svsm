@@ -36,6 +36,7 @@
 	.code64
 GLOBAL(enter_syscall)
 enter_syscall:
+
 	# Change GS to access per-CPU variables
 	swapgs
 
