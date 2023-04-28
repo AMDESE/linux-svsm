@@ -180,8 +180,9 @@ pub struct Vmsa {
 
     rax: u64,
     star: u64,
+    lstar: u64,
 
-    reserved6a: [u8; 16],
+    reserved6a: [u8; 8],
 
     sfmask: u64,
 
@@ -296,6 +297,7 @@ impl Vmsa {
     funcs!(vmpl, u8);
     funcs!(rax, u64);
     funcs!(star, u64);
+    funcs!(lstar, u64);
     funcs!(sfmask, u64);
     funcs!(rbx, u64);
     funcs!(rcx, u64);

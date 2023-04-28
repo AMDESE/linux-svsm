@@ -29,6 +29,8 @@ pub mod mem;
 pub mod protocols;
 /// Handle requests from the SVSM guest
 pub mod svsm_request;
+/// Handler for system calls
+pub mod syscall_handler;
 /// Auxiliary functions and macros
 pub mod util;
 /// Handle the list of VMSA pages

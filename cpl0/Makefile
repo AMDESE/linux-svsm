@@ -26,6 +26,7 @@ TARGET_DIR	:= target
 TARGET		:= $(TARGET_DIR)/svsm-target/debug
 
 OBJS		:= src/start/start.o
+OBJS		+= src/cpu/syscall.o
 OBJS		+= $(TARGET)/libsvsm_cpl0.a
 
 ELF_FILE	:= cpl0.bin.elf

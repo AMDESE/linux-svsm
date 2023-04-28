@@ -27,7 +27,4 @@ pub fn syscall_init() {
 
     // Disable interrupts when entering a system call
     wrmsr(MSR_SFMASK, SFMASK_INTERRUPTS_DISABLED);
-
-    // Register system call entry point
-    wrmsr(MSR_LSTAR, get_syscall_entry().as_u64());
 }

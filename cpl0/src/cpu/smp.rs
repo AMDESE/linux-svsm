@@ -183,6 +183,7 @@ fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
 
         // Prepare for system calls
         (*vmsa).set_star(syscall_gdt());
+        (*vmsa).set_lstar(get_syscall_entry().as_u64());
         (*vmsa).set_sfmask(SFMASK_INTERRUPTS_DISABLED);
 
         (*vmsa).set_dr6(SVSM_DR6);

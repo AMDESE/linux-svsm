@@ -497,9 +497,6 @@ static PERCPU_SIZE: u64 = ALIGN!(size_of::<PerCpu>() as u64, CACHE_LINE);
 
 pub static mut PERCPU: PerCpu = PerCpu::new();
 
-const OFFSET_KERNEL_STACK: u64 = 0;
-const OFFSET_USER_STACK: u64 = 8;
-
 fn get_apic_id() -> u32 {
     let eax: u32 = CPUID_EXTENDED_TOPO;
     let ecx: u32 = 0;
@@ -593,7 +590,7 @@ pub fn percpu_init() {
     }
 
     unsafe {
-        assert!(PERCPU.offset_of_kernel_stack() == OFFSET_KERNEL_STACK);
-        assert!(PERCPU.offset_of_user_stack() == OFFSET_USER_STACK);
+        assert!(PERCPU.offset_of_kernel_stack() == get_offset_kernel());
+        assert!(PERCPU.offset_of_user_stack() == get_offset_user());
     }
 }
