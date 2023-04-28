@@ -10,7 +10,8 @@
 
 	.code64
 GLOBAL(code_user)
-	call	*hl_user_main(%rip)
+	movq	hl_user_main(%rip), %rax
+	call	*%rax
 
 	# We shouldn't reach this point, issue a
 	# terminatipm call and enter a halt loop

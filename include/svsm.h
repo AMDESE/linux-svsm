@@ -70,7 +70,7 @@ _name:
 
 #define SVSM_PAGES			(SVSM_MEM_ASM / PAGE_SIZE)
 
-#define SVSM_EFER			0x00001d00	/* SVME, NXE, LMA, LME */
+#define SVSM_EFER			0x00001d01	/* SVME, NXE, LMA, LME, SCE */
 #define SVSM_CR0			0x80010033	/* PG, WP, NE, ET, MP, PE */
 #define SVSM_CR4			0x00000668	/* OSXMMEXCPT, OSFXSR, MCE, PAE, DE */
 

@@ -6,6 +6,8 @@
  *          Tom Lendacky <thomas.lendacky@amd.com>
  */
 
+/// CPL handling
+pub mod cpl;
 /// Handle CpuidPages and their entries.
 pub mod cpuid;
 /// Create IDT and handle exceptions
@@ -25,6 +27,7 @@ pub mod vc;
 /// Vmsa (Virtual Machine Saving Area) support
 pub mod vmsa;
 
+pub use crate::cpu::cpl::*;
 pub use crate::cpu::idt::*;
 pub use crate::cpu::percpu::*;
 pub use crate::cpu::smp::*;

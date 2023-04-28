@@ -148,6 +148,9 @@ pub extern "C" fn svsm_main() -> ! {
     // Initialize and start APs
     smp_init();
 
+    // Prepare for CPL switching
+    cpl_init();
+
     // Load BIOS
     start_bios();
 

@@ -9,6 +9,8 @@
 #![no_std]
 use core::panic::PanicInfo;
 
+pub mod syscall;
+
 #[panic_handler]
 fn panic(_panic_info: &PanicInfo) -> ! {
     loop {}

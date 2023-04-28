@@ -216,7 +216,25 @@ The SVSM page table applies an offset to its virtual addresses.
 ## Linux SVSM userspace <a name="cpl3"></a>
 
 This branch is able to run portions of SVSM in userspace, but requires
-patching Qemu with the patch qemu\_binaries.patch.
+patching Qemu with the patch qemu\_binaries.patch. The verbose option
+shows information regarding the user code and stack virtual addresses,
+which can be easily distinguished from the kernel in its offsets:
+
+```
+> SVSM userspace info:
+   Stack start=0xfb000  Stack end=0xff000, Stack size=0x4000
+   Code start=0x100000   Code end=0x104000
+   Pages of code=5
+   ---
+   User stack flags:
+   VA 0xfb000 mapped to PFN 0x800800ff74000 with flags 0x8000000000000007
+   where NO_EXECUTE is set, USER_ACCESSIBLE is set, PRESENT is set, WRITABLE is set.
+   --
+   User code flags:
+   VA 0x100000 mapped to PFN 0x800800012c000 with flags 0x7
+   where NO_EXECUTE is NOT set, USER_ACCESSIBLE is set, PRESENT is set, WRITABLE is set.
+
+```
 
 ## Contribution <a name="contribute"></a>
 

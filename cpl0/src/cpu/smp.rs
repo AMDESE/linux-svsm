@@ -49,8 +49,8 @@ const SVSM_CR4: u64 = 0x668; /* OSXMMEXCPT, OSFXSR, MCE, PAE, DE */
 const SVSM_DR6: u64 = 0xffff0ff0;
 /// 0x400
 const SVSM_DR7: u64 = 0x400;
-/// 0x1d00
-const SVSM_EFER: u64 = 0x1d00; /* SVME, NXE, LMA, LME */
+/// 0x1d01
+const SVSM_EFER: u64 = 0x1d01; /* SVME, NXE, LMA, LME, SCE */
 /// 0x0007040600070406
 const SVSM_GPAT: u64 = 0x0007040600070406;
 /// 0x1

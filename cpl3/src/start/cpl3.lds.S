@@ -17,7 +17,6 @@ SECTIONS
 
 	.text : {
 	stext = .;
-		*(.text.reset)
 		*(.text)
 		*(.text.*)
 	}

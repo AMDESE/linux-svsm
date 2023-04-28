@@ -462,6 +462,12 @@ GLOBAL(svsm_cpuid_page_size)
 GLOBAL(bios_vmsa_page)
 	.quad	SVSM_SNP_BIOS_BSP_PAGE_BASE
 
+GLOBAL(cpl3_start)
+	.quad	SVSM_CPL3_GVA_START
+
+GLOBAL(svsm_size)
+	.quad	SVSM_SNP_MEASURED_PAGES_BASE
+
 	.section .data.padding
 data_pad_start:
 	.fill	4096 - ((data_pad_end - data_pad_start) % 4096), 1, 0

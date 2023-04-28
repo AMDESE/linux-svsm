@@ -9,6 +9,9 @@
 use crate::BIT;
 use x86_64::addr::VirtAddr;
 
+/// 0xc0000102
+pub const MSR_KERNEL_GS_BASE: u32 = 0xc0000102;
+
 // Total number of implemented system calls
 /// 0
 pub const MAX_SYSCALLS: u32 = 0;
@@ -215,11 +218,13 @@ extern_symbol_virtaddr_ro!(bios_vmsa_page, u64);
 extern_symbol_virtaddr_ro!(guard_page, u64);
 extern_symbol_virtaddr_ro!(early_ghcb, u64);
 extern_symbol_virtaddr_ro!(early_tss, u64);
+extern_symbol_virtaddr_ro!(svsm_size, u64);
 extern_symbol_u64_ro!(gdt64_tss, u64);
 extern_symbol_u64_ro!(gdt64_kernel_cs, u64);
 extern_symbol_u64_ro!(gdt64_user32_cs, u64);
 extern_symbol_u64_ro!(gdt64_user64_cs, u64);
 extern_symbol_u64_ro!(gdt64_user64_ds, u64);
+extern_symbol_u64_ro!(cpl3_start, u64);
 extern_symbol_virtaddr_ro!(dyn_mem_begin, u64);
 extern_symbol_virtaddr_ro!(dyn_mem_end, u64);
 extern_symbol_virtaddr_ro!(syscall_entry, u64);
