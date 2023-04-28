@@ -8,7 +8,6 @@
 
 #![feature(type_ascription)]
 #![feature(abi_x86_interrupt)]
-#![feature(alloc_error_handler)]
 // Disable the (implicitly-linked) standard library. #! defines behavior of the current module; as
 // we are in root, the entire crate is affected.
 #![no_std]

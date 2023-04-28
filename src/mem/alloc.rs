@@ -1141,12 +1141,6 @@ unsafe impl GlobalAlloc for SvsmAllocator {
 #[cfg_attr(not(test), global_allocator)]
 pub static mut ALLOCATOR: SvsmAllocator = SvsmAllocator::new();
 
-#[cfg(not(test))]
-#[alloc_error_handler]
-fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
-    panic!("Allocation failed: {:?}\n", layout)
-}
-
 /// Create a stack of size stack_pages and add a guard page
 /// also make the stack user accessible if needed
 pub fn mem_create_stack(stack_pages: u64, user_space: bool) -> VirtAddr {

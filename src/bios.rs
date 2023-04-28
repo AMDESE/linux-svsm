@@ -13,6 +13,7 @@ use crate::*;
 
 use core::cmp::min;
 use core::mem::size_of;
+use core::ptr;
 use core::slice;
 use uuid::Bytes;
 use uuid::{uuid, Uuid};
@@ -200,7 +201,7 @@ fn find_bios_guid_entry(bios_info: &mut BiosInfo, target_guid: Uuid) -> Option<u
 }
 
 unsafe fn __find_snp_section(bios_info: &mut BiosInfo, stype: u32, p: u64) -> Option<SnpSection> {
-    let offset: u64 = *(p as *const u32) as u64;
+    let offset: u64 = ptr::read_unaligned(p as *const u32) as u64;
     if offset > bios_info.size() {
         return None;
     }
