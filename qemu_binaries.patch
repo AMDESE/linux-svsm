@@ -1,0 +1,229 @@
+--- a/hw/i386/pc_sysfw_guid_parse.c
++++ b/hw/i386/pc_sysfw_guid_parse.c
+@@ -27,6 +27,11 @@
+ #include "hw/i386/pc.h"
+ #include "cpu.h"
+ 
++typedef enum GuidParseDirection {
++    PARSE_FORWARD,
++    PARSE_REVERSE,
++} GuidParseDirection;
++
+ #define OVMF_SEV_META_DATA_GUID "dc886566-984a-4798-A75e-5585a7bf67cc"
+ #define SVSM_SEV_META_DATA_GUID "be30189b-ab44-4a97-82dd-ea813941047e"
+ 
+@@ -38,6 +43,7 @@ typedef struct GuidParseInfo {
+     uint8_t *table;
+     int table_len;
+     bool parsed;
++    GuidParseDirection table_dir;
+ 
+     SevMetadataHeader *metadata;
+ } GuidParseInfo;
+@@ -48,36 +54,74 @@ static GuidParseInfo ovmf_info;
+ #define SVSM_TABLE_FOOTER_GUID "81384fea-ad48-4eb6-af4f-6ac49316df2b"
+ static GuidParseInfo svsm_info;
+ 
+-static void guid_parse_init(uint8_t *ptr, size_t size, const char *guid_str,
+-                            GuidParseInfo *info)
++static uint8_t *__guid_parse_forward(uint8_t *ptr, QemuUUID *guid, int *len)
++{
++    *len = 0;
++
++    if (!qemu_uuid_is_equal((QemuUUID *)ptr, guid)) {
++        return ptr;
++    }
++    ptr += sizeof(*guid);
++
++    *len = le16_to_cpu(*(uint16_t *)ptr);
++    *len -= sizeof(guid) + sizeof(uint16_t);
++    ptr += sizeof(uint16_t);
++
++    return ptr;
++}
++
++static uint8_t *__guid_parse_reverse(uint8_t *ptr, QemuUUID *guid, int *len)
++{
++    *len = 0;
++
++    ptr -= sizeof(*guid);
++    if (!qemu_uuid_is_equal((QemuUUID *)ptr, guid)) {
++        return ptr;
++    }
++
++    ptr -= sizeof(uint16_t);
++    *len = le16_to_cpu(*(uint16_t *)ptr);
++    *len -= sizeof(guid) + sizeof(uint16_t);
++
++    return ptr - *len;
++}
++
++static bool guid_parse_init(uint8_t *mem, size_t size, size_t offset,
++                            const char *guid_str, GuidParseInfo *info,
++                            GuidParseDirection dir)
+ {
+     QemuUUID guid;
++    uint8_t *ptr;
+     int tot_len;
+ 
+     qemu_uuid_parse(guid_str, &guid);
+     guid = qemu_uuid_bswap(guid); /* GUIDs are LE */
+ 
+-    if (!qemu_uuid_is_equal((QemuUUID *)ptr, &guid)) {
+-        return;
++    if (dir == PARSE_FORWARD) {
++        ptr = mem + offset;
++        ptr = __guid_parse_forward(ptr, &guid, &tot_len);
++    } else {
++        ptr = mem + size - offset;
++        ptr = __guid_parse_reverse(ptr, &guid, &tot_len);
+     }
+ 
+-    /* If found, just before is two byte table length */
+-    ptr -= sizeof(uint16_t);
+-    tot_len = le16_to_cpu(*(uint16_t *)ptr) - sizeof(guid) - sizeof(uint16_t);
+-
+     if (tot_len <= 0) {
+-        return;
++        return false;
+     }
+ 
+     info->table = g_malloc(tot_len);
+     info->table_len = tot_len;
++    info->table_dir = dir;
+ 
+-    /*
+-     * ptr is the foot of the table, so copy it all to the newly allocated
+-     * table and then set the table pointer to the table foot.
+-     */
+-    memcpy(info->table, ptr - tot_len, tot_len);
+-    info->table += tot_len;
++    /* Copy all of the data into the newly allocated table */
++    memcpy(info->table, ptr, tot_len);
++
++    if (dir == PARSE_REVERSE) {
++        /* For reverse parsing, set the table pointer to the table foot */
++        info->table += tot_len;
++    }
++
++    return true;
+ }
+ 
+ static bool guid_parse_find(const char *entry, uint8_t **data, int *data_len,
+@@ -101,39 +145,61 @@ static bool guid_parse_find(const char *entry, uint8_t **data, int *data_len,
+     while (tot_len >= sizeof(QemuUUID) + sizeof(uint16_t)) {
+         int len;
+         QemuUUID *guid;
+-
+-        /*
+-         * The data structure is:
+-         *   arbitrary length data
+-         *   2 byte length of entire entry
+-         *   16 byte guid
+-         */
+-        guid = (QemuUUID *)(ptr - sizeof(QemuUUID));
+-        len = le16_to_cpu(*(uint16_t *)(ptr - sizeof(QemuUUID) -
+-                                        sizeof(uint16_t)));
++        uint16_t *e_data_len;
++
++        if (info->table_dir == PARSE_FORWARD) {
++            /*
++             * The forwared direction data structure is:
++             *   16 byte guid
++             *   2 byte length of entire entry
++             *   arbitrary length data
++             */
++            guid = (QemuUUID *)ptr;
++            e_data_len = (uint16_t *)(ptr + sizeof(QemuUUID));
++        } else {
++            /*
++             * The reverse direction data structure is:
++             *   arbitrary length data
++             *   2 byte length of entire entry
++             *   16 byte guid
++             */
++            guid = (QemuUUID *)(ptr - sizeof(QemuUUID));
++            e_data_len = (uint16_t *)(ptr - sizeof(QemuUUID) - sizeof(uint16_t));
++        }
+ 
+         /*
+          * Just in case the table is corrupt, wouldn't want to spin in
+          * the zero case.
+          */
++        len = le16_to_cpu(*e_data_len);
+         if (len < sizeof(QemuUUID) + sizeof(uint16_t)) {
+             return false;
+         } else if (len > tot_len) {
+             return false;
+         }
+ 
+-        ptr -= len;
+-        tot_len -= len;
+         if (qemu_uuid_is_equal(guid, &entry_guid)) {
++            if (info->table_dir == PARSE_FORWARD) {
++                ptr += sizeof(QemuUUID) + sizeof(uint16_t);
++            } else {
++                ptr -= len;
++            }
++
+             if (data) {
+                 *data = ptr;
+             }
++
+             if (data_len) {
+                 *data_len = len - sizeof(QemuUUID) - sizeof(uint16_t);
+             }
++
+             return true;
+         }
++
++        ptr += (info->table_dir == PARSE_FORWARD) ? len : -len;
++        tot_len -= len;
+     }
++
+     return false;
+ }
+ 
+@@ -147,7 +213,11 @@ static void pc_system_parse_svsm_sev_metadata(uint8_t *ptr, size_t size,
+         return;
+     }
+ 
+-    metadata = (SevMetadataHeader *)(ptr + size - data->offset);
++    if (info->table_dir == PARSE_FORWARD) {
++        metadata = (SevMetadataHeader *)(ptr + data->offset);
++    } else {
++        metadata = (SevMetadataHeader *)(ptr + size - data->offset);
++    }
+     if (memcmp(metadata->signature, "SVSM", 4) != 0) {
+         return;
+     }
+@@ -210,8 +280,8 @@ void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size)
+      * end of the flash file. If it's not found, silently abort the flash
+      * parsing.
+      */
+-    guid_parse_init(flash_ptr + flash_size - 48, flash_size,
+-                    OVMF_TABLE_FOOTER_GUID, &ovmf_info);
++    guid_parse_init(flash_ptr, flash_size, 32,
++                    OVMF_TABLE_FOOTER_GUID, &ovmf_info, PARSE_REVERSE);
+ 
+     pc_system_parse_ovmf_sev_metadata(flash_ptr, flash_size, &ovmf_info);
+ }
+@@ -250,11 +320,13 @@ void pc_system_parse_svsm_file(uint8_t *svsm_ptr, size_t svsm_size)
+     svsm_info.parsed = true;
+ 
+     /*
+-     * If this is an SVSM there will be a table footer GUID at the end of the
+-     * file. If it's not found, silently abort the flash parsing.
++     * An SVSM can have a table footer GUID at the end of the file or at the
++     * beginning of the file. For backwards compatibility, check both.
+      */
+-    guid_parse_init(svsm_ptr + svsm_size - 16, svsm_size,
+-                    SVSM_TABLE_FOOTER_GUID, &svsm_info);
++    if (!guid_parse_init(svsm_ptr, svsm_size, 0,
++                         SVSM_TABLE_FOOTER_GUID, &svsm_info, PARSE_REVERSE))
++           guid_parse_init(svsm_ptr, svsm_size, 0,
++                            SVSM_TABLE_FOOTER_GUID, &svsm_info, PARSE_FORWARD);
+ 
+     pc_system_parse_svsm_sev_metadata(svsm_ptr, svsm_size, &svsm_info);
+ }
+

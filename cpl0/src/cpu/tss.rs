@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -21,6 +21,10 @@ pub const DOUBLE_FAULT_IST: usize = 0;
 /// 3
 const IST_STACK_PAGES: u64 = 3;
 
+// 2 stack pages for kernel
+/// 2
+const KERNEL_STACK_PAGES: u64 = 2;
+
 unsafe fn create_tss() -> VirtAddr {
     let tss_va: VirtAddr = match mem_allocate(size_of::<TaskStateSegment>()) {
         Ok(f) => f,
@@ -34,8 +38,10 @@ unsafe fn create_tss() -> VirtAddr {
     *tss = tss_template;
 
     let ist_stack: VirtAddr = mem_create_stack(IST_STACK_PAGES, false);
+    let cpl0_stack: VirtAddr = mem_create_stack(KERNEL_STACK_PAGES, false);
 
     (*tss).interrupt_stack_table[DOUBLE_FAULT_IST] = ist_stack;
+    (*tss).privilege_stack_table[0] = cpl0_stack;
 
     tss_va
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -27,6 +27,12 @@ use x86_64::structures::paging::PhysFrame;
 /// (Vmsa) and Caa
 ///
 pub struct PerCpu {
+    // Pointers to the kernel and user stack for system calls.
+    // New fields for PerCPU should go below kernel and
+    // user stack, due to offset assumptions made for system calls
+    kernel_stack: u64,
+    user_stack: u64,
+
     cpu_id: u32,
     apic_id: u32,
 
@@ -46,6 +52,9 @@ pub struct PerCpu {
 impl PerCpu {
     pub const fn new() -> Self {
         PerCpu {
+            kernel_stack: 0,
+            user_stack: 0,
+
             cpu_id: 0,
             apic_id: 0,
 
@@ -54,6 +63,114 @@ impl PerCpu {
             caa: [0; VMPL::VmplMax as usize],
 
             tss: 0,
+        }
+    }
+
+    pub fn offset_of_kernel_stack(&self) -> u64 {
+        offset_of!(PerCpu, kernel_stack) as u64
+    }
+
+    pub fn offset_of_user_stack(&self) -> u64 {
+        offset_of!(PerCpu, user_stack) as u64
+    }
+
+    /// Obtain kernel stack of current CPU
+    pub fn kernel_stack(&mut self) -> VirtAddr {
+        let kernel_stack: u64;
+
+        unsafe {
+            asm!("mov {1}, gs:[{0}]",
+                 in(reg) offset_of!(PerCpu, kernel_stack),
+                 out(reg) kernel_stack,
+            );
+        }
+
+        VirtAddr::new(kernel_stack)
+    }
+
+    /// Set kernel stack of current CPU
+    pub fn set_kernel_stack(&mut self, kernel_stack: VirtAddr) {
+        unsafe {
+            asm!("mov gs:[{0}], {1}",
+                 in(reg) offset_of!(PerCpu, kernel_stack),
+                 in(reg) kernel_stack.as_u64(),
+            );
+        }
+    }
+
+    /// Obtain kernel stack of a given CPU
+    pub fn kernel_stack_for(&mut self, for_id: usize) -> VirtAddr {
+        let kernel_stack: u64;
+
+        unsafe {
+            assert!(for_id < CPU_COUNT);
+
+            let p: *const PerCpu =
+                (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *const PerCpu;
+            kernel_stack = (*p).kernel_stack;
+        }
+
+        VirtAddr::new(kernel_stack)
+    }
+
+    /// Set kernel stack of a given CPU
+    pub fn set_kernel_stack_for(&mut self, kernel_stack: VirtAddr, for_id: usize) {
+        unsafe {
+            assert!(for_id < CPU_COUNT);
+
+            let p: *mut PerCpu =
+                (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *mut PerCpu;
+            (*p).kernel_stack = kernel_stack.as_u64();
+        }
+    }
+
+    /// Obtain user stack of current CPU
+    pub fn user_stack(&mut self) -> VirtAddr {
+        let user_stack: u64;
+
+        unsafe {
+            asm!("mov {1}, gs:[{0}]",
+                 in(reg) offset_of!(PerCpu, user_stack),
+                 out(reg) user_stack,
+            );
+        }
+
+        VirtAddr::new(user_stack)
+    }
+
+    /// Set user stack of current CPU
+    pub fn set_user_stack(&mut self, user_stack: VirtAddr) {
+        unsafe {
+            asm!("mov gs:[{0}], {1}",
+                 in(reg) offset_of!(PerCpu, user_stack),
+                 in(reg) user_stack.as_u64(),
+            );
+        }
+    }
+
+    /// Obtain user stack of a given CPU
+    pub fn user_stack_for(&mut self, for_id: usize) -> VirtAddr {
+        let user_stack: u64;
+
+        unsafe {
+            assert!(for_id < CPU_COUNT);
+
+            let p: *const PerCpu =
+                (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *const PerCpu;
+            user_stack = (*p).user_stack;
+        }
+
+        VirtAddr::new(user_stack)
+    }
+
+    /// Set user stack of a given CPU
+    pub fn set_user_stack_for(&mut self, user_stack: VirtAddr, for_id: usize) {
+        unsafe {
+            assert!(for_id < CPU_COUNT);
+
+            let p: *mut PerCpu =
+                (PERCPU_VA.as_u64() + (for_id as u64 * PERCPU_SIZE)) as *mut PerCpu;
+            (*p).user_stack = user_stack.as_u64();
         }
     }
 
@@ -470,5 +587,10 @@ pub fn percpu_init() {
 
     if count != init_count {
         mem_free_frames(init_frame, init_count);
+    }
+
+    unsafe {
+        assert!(PERCPU.offset_of_kernel_stack() == get_offset_kernel());
+        assert!(PERCPU.offset_of_user_stack() == get_offset_user());
     }
 }

@@ -6,7 +6,7 @@ crate-type = ["staticlib"]
 verbose = [] # Print updates on serial (demo and debug purposes)
 
 [package]
-name = "linux_svsm"
+name = "svsm_cpl0"
 authors = ["Tom Lendacky <thomas.lendacky@amd.com>", "Carlos Bilbao <carlos.bilbao@amd.com>"]
 version = "0.1.0"
 edition = "2021"

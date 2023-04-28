@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -49,8 +49,8 @@ const SVSM_CR4: u64 = 0x668; /* OSXMMEXCPT, OSFXSR, MCE, PAE, DE */
 const SVSM_DR6: u64 = 0xffff0ff0;
 /// 0x400
 const SVSM_DR7: u64 = 0x400;
-/// 0x1d00
-const SVSM_EFER: u64 = 0x1d00; /* SVME, NXE, LMA, LME */
+/// 0x1d01
+const SVSM_EFER: u64 = 0x1d01; /* SVME, NXE, LMA, LME, SCE */
 /// 0x0007040600070406
 const SVSM_GPAT: u64 = 0x0007040600070406;
 /// 0x1
@@ -180,6 +180,12 @@ fn create_svsm_vmsa(for_id: usize) -> VirtAddr {
         (*vmsa).set_cr4(SVSM_CR4);
         (*vmsa).set_efer(SVSM_EFER);
         (*vmsa).set_rflags(SVSM_RFLAGS);
+
+        // Prepare for system calls
+        (*vmsa).set_star(syscall_gdt());
+        (*vmsa).set_lstar(get_syscall_entry().as_u64());
+        (*vmsa).set_sfmask(SFMASK_INTERRUPTS_DISABLED);
+
         (*vmsa).set_dr6(SVSM_DR6);
         (*vmsa).set_dr7(SVSM_DR7);
         (*vmsa).set_gpat(SVSM_GPAT);

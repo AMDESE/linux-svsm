@@ -28,6 +28,8 @@ pub mod mem;
 pub mod protocols;
 /// Handle requests from the SVSM guest
 pub mod svsm_request;
+/// Handler for system calls
+pub mod syscall_handler;
 /// Auxiliary functions and macros
 pub mod util;
 /// Handle the list of VMSA pages
@@ -42,7 +44,7 @@ use crate::cpu::rmpadjust;
 use crate::cpu::*;
 use crate::globals::*;
 use crate::mem::*;
-use crate::svsm_request::svsm_request_loop;
+use crate::svsm_request::*;
 use crate::util::*;
 use crate::vmsa::*;
 
@@ -145,11 +147,16 @@ pub extern "C" fn svsm_main() -> ! {
     // Initialize and start APs
     smp_init();
 
+    syscall_init();
+
+    // Prepare for CPL switching
+    cpl_init();
+
     // Load BIOS
     start_bios();
 
-    // Start taking requests from guest in this vCPU
-    svsm_request_loop();
+    // Start userspace
+    cpl_go_unprivileged();
 
     // We should never reach this point
     loop {

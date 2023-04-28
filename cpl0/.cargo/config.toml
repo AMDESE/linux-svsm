@@ -1,0 +1,16 @@
+# Needed to recompile Rust core and compiler_builtins libraries
+# also use the mem{set,cmp,cpy} implementations
+[unstable]
+build-std-features = ["compiler-builtins-mem"]
+build-std = ["core", "compiler_builtins", "alloc"]
+
+# This avoids writting cargo build --target svsm-target.json
+# but don't change the README instructions as someone might not
+# have .cargo/
+[build]
+target = "svsm-target.json"
+
+[target.svsm-target]
+rustflags = [
+  "-C", "link-arg=-Tsrc/start/svsm.lds",
+]

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  *
  * Authors: Carlos Bilbao <carlos.bilbao@amd.com> and
  *          Tom Lendacky <thomas.lendacky@amd.com>
@@ -8,6 +8,39 @@
 
 use crate::BIT;
 use x86_64::addr::VirtAddr;
+
+/// 0xc0000102
+pub const MSR_KERNEL_GS_BASE: u32 = 0xc0000102;
+
+// Total number of implemented system calls
+/// 0
+pub const MAX_SYSCALLS: u32 = 2;
+
+// New system call ids here. Should be POSIX compliant
+
+pub const GET_NEXT_REQUEST: u32 = 0;
+pub const SET_REQUEST_FINISHED: u32 = 1;
+
+// Possible return messages of the system calls
+
+/// Invalid argument (Value 22)
+pub const EINVAL: isize = 22;
+
+// CPL0 and CPL3 segment bases, and SYSCALL EIP
+/// 0xc0000081
+pub const MSR_STAR: u32 = 0xc0000081;
+
+// Contains kernel's RIP SYSCALL entry
+/// 0xC0000082
+pub const MSR_LSTAR: u32 = 0xC0000082;
+
+// Low 32 bits are SYSCALL flag mask (clearing rFLAGS)
+/// 0xC0000084
+pub const MSR_SFMASK: u32 = 0xC0000084;
+
+// Value for MSR SFMASK to disable interrupts during syscalls
+/// 0x200
+pub const SFMASK_INTERRUPTS_DISABLED: u64 = BIT!(9);
 
 // GHCB standard termination constants
 /// 0
@@ -188,10 +221,18 @@ extern_symbol_virtaddr_ro!(bios_vmsa_page, u64);
 extern_symbol_virtaddr_ro!(guard_page, u64);
 extern_symbol_virtaddr_ro!(early_ghcb, u64);
 extern_symbol_virtaddr_ro!(early_tss, u64);
+extern_symbol_virtaddr_ro!(svsm_size, u64);
 extern_symbol_u64_ro!(gdt64_tss, u64);
 extern_symbol_u64_ro!(gdt64_kernel_cs, u64);
+extern_symbol_u64_ro!(gdt64_user32_cs, u64);
+extern_symbol_u64_ro!(gdt64_user64_cs, u64);
+extern_symbol_u64_ro!(gdt64_user64_ds, u64);
+extern_symbol_u64_ro!(cpl3_start, u64);
 extern_symbol_virtaddr_ro!(dyn_mem_begin, u64);
 extern_symbol_virtaddr_ro!(dyn_mem_end, u64);
+extern_symbol_virtaddr_ro!(syscall_entry, u64);
+extern_symbol_u64_ro!(offset_kernel, u64);
+extern_symbol_u64_ro!(offset_user, u64);
 extern_symbol_u64_rw!(hl_main, u64);
 extern_symbol_u64_rw!(cpu_mode, u64);
 extern_symbol_u64_rw!(cpu_stack, u64);
