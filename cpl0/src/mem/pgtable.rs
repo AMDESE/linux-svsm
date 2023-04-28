@@ -25,6 +25,7 @@ use x86_64::structures::paging::mapper::{
 use x86_64::structures::paging::page::Page;
 use x86_64::structures::paging::page::{PageRange, Size4KiB};
 use x86_64::structures::paging::*;
+use x86_64::structures::paging::{Mapper, PageTable};
 
 const SVSM_GVA_OFFSET: VirtAddr = VirtAddr::new_truncate(0xffff800000000000);
 static mut P4: PageTable = PageTable::new();
@@ -304,6 +305,94 @@ fn page_mapping_matches(va: VirtAddr, mframe: PhysFrame, mflags: PageTableFlags)
     };
 
     use_mapping
+}
+
+unsafe fn __map_user_pages(
+    mem_va: VirtAddr,
+    private_pa: PhysAddr,
+    entry_flags: PageTableFlags,
+) -> bool {
+    let mut allocator: PageTableAllocator = PageTableAllocator::new();
+    let page: Page<Size4KiB> = Page::containing_address(mem_va);
+    let frame: PhysFrame = PhysFrame::from_start_address_unchecked(private_pa);
+    let result: Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> =
+        PGTABLE
+            .lock()
+            .map_to(page, frame, entry_flags, &mut allocator);
+    match result {
+        Ok(r) => r.flush(),
+        Err(e) => match e {
+            MapToError::PageAlreadyMapped(_) => {
+                if !page_mapping_matches(mem_va, frame, entry_flags) {
+                    if !pgtable_unmap_pages(mem_va, PAGE_SIZE) {
+                        vc_terminate_svsm_page_err();
+                    }
+
+                    return true;
+                }
+            }
+            _ => {
+                return false;
+            }
+        },
+    }
+
+    true
+}
+
+pub fn map_user_stack(stack_top_va: VirtAddr, mem_top: PhysAddr, len: u64) -> bool {
+    let mut map: PhysAddr = mem_top;
+    let mut mem_va: VirtAddr = stack_top_va;
+    let map_bottom: PhysAddr = map - len * PAGE_SIZE;
+
+    let entry_flags: PageTableFlags = PageTableFlags::PRESENT
+        | PageTableFlags::WRITABLE
+        | PageTableFlags::USER_ACCESSIBLE
+        | PageTableFlags::NO_EXECUTE;
+
+    // PageType is Private
+    let pa_mod: u64 = get_sev_encryption_mask();
+
+    while map > map_bottom {
+        let private_pa: PhysAddr = PhysAddr::new(map.as_u64() | pa_mod);
+
+        unsafe {
+            if __map_user_pages(mem_va, private_pa, entry_flags) == true {
+                map -= PAGE_SIZE;
+                mem_va -= PAGE_SIZE;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
+pub fn map_user_code(code_start_va: VirtAddr, mem_start: PhysAddr, len: u64) -> bool {
+    let mut map: PhysAddr = mem_start.align_down(PAGE_SIZE);
+    let mut mem_va: VirtAddr = code_start_va;
+    let map_end: PhysAddr = map + (len - 1_u64) * PAGE_SIZE;
+    let entry_flags: PageTableFlags =
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
+
+    // PageType is Private
+    let pa_mod: u64 = get_sev_encryption_mask();
+
+    while map < map_end {
+        let private_pa: PhysAddr = PhysAddr::new(map.as_u64() | pa_mod);
+
+        unsafe {
+            if __map_user_pages(mem_va, private_pa, entry_flags) == true {
+                map += PAGE_SIZE;
+                mem_va += PAGE_SIZE;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    true
 }
 
 unsafe fn __map_pages(
