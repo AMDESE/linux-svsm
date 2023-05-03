@@ -64,8 +64,8 @@ const SVSM_X87_FTW: u16 = 0x5555;
 /// 0x40
 const SVSM_X87_FCW: u16 = 0x40;
 
-/// 5
-const SVSM_STACK_PAGES: u64 = 5; /* 4 stack pages and one guard page */
+/// 17
+const SVSM_STACK_PAGES: u64 = 17; /* 16 stack pages and one guard page */
 
 static mut AP_SYNC: u8 = 0;
 /// 1
