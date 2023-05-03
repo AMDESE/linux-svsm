@@ -16,6 +16,8 @@
 // overwrite _start().
 #![cfg_attr(not(test), no_main)]
 
+/// Bindgen generated bindings
+pub mod bindings;
 /// Initialize BIOS for the guest
 pub mod bios;
 /// Prepare and start SMP

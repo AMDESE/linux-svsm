@@ -17,7 +17,7 @@ LD_FLAGS	+= -nostdlib
 LD_FLAGS	+= -Wl,-Tsrc/start/svsm.lds -Wl,--build-id=none
 
 TARGET_DIR	:= target
-TARGET		:= $(TARGET_DIR)/svsm-target/debug
+TARGET		:= $(TARGET_DIR)/x86_64-unknown-none/debug
 
 OBJS		:= src/start/start.o
 OBJS		+= $(TARGET)/liblinux_svsm.a
