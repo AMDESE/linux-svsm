@@ -65,3 +65,4 @@ dkms.conf
 # Others
 *.lds
 .prereq
+bindgen_out.rs

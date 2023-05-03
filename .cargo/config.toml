@@ -8,7 +8,7 @@ build-std = ["core", "compiler_builtins", "alloc"]
 # but don't change the README instructions as someone might not
 # have .cargo/
 [build]
-target = "svsm-target.json"
+target = "x86_64-unknown-none.json"
 
 [target.svsm-target]
 rustflags = [
