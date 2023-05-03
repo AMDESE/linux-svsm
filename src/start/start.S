@@ -219,10 +219,7 @@ terminate_hlt:
 GLOBAL(bsp_guard_page)
 	.fill	512, 8, 0
 bsp_stack_start:
-	.fill	512, 8, 0
-	.fill	512, 8, 0
-	.fill	512, 8, 0
-	.fill	512, 8, 0
+	.fill	8192, 8, 0
 bsp_stack_end:
 
 /*
