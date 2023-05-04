@@ -6,7 +6,7 @@
  */
 
 use crate::mem::{mem_allocate, pgtable_make_pages_shared};
-use crate::{prints, ALIGN, ALIGNED, PAGE_COUNT, PAGE_SHIFT, PAGE_SIZE};
+use crate::{funcs, getter_func, prints, ALIGN, ALIGNED, PAGE_COUNT, PAGE_SHIFT, PAGE_SIZE};
 
 use x86_64::addr::VirtAddr;
 
@@ -64,6 +64,11 @@ pub struct SnpGuestRequestCmd {
 }
 
 impl SnpGuestRequestCmd {
+    getter_func!(req_shared_page, VirtAddr);
+    getter_func!(resp_shared_page, VirtAddr);
+    getter_func!(data_gva, VirtAddr);
+    funcs!(data_npages, usize);
+
     pub const fn new() -> Self {
         SnpGuestRequestCmd {
             req_shared_page: VirtAddr::zero(),

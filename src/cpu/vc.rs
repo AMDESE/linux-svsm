@@ -16,6 +16,7 @@ use crate::globals::*;
 use crate::mem::ghcb::Ghcb;
 use crate::mem::ghcb::*;
 use crate::mem::*;
+use crate::psp::guest_request_cmd::{SnpGuestRequestCmd, SNP_GUEST_REQ_INVALID_LEN};
 use crate::util::util::memset;
 use crate::*;
 
@@ -115,6 +116,10 @@ const GHCB_NAE_CPUID: u64 = 0x72;
 const GHCB_NAE_IOIO: u64 = 0x7b;
 /// 0x80000010
 const GHCB_NAE_PSC: u64 = 0x80000010;
+/// 0x80000011
+const GHCB_NAE_SNP_GUEST_REQUEST: u64 = 0x80000011;
+/// 0x80000012
+const GHCB_NAE_SNP_EXT_GUEST_REQUEST: u64 = 0x80000012;
 /// 0x80000013
 const GHCB_NAE_SNP_AP_CREATION: u64 = 0x80000013;
 /// 1
@@ -374,6 +379,47 @@ pub fn vc_ap_create(vmsa_va: VirtAddr, apic_id: u32) {
 
         (*ghcb).clear();
     }
+}
+
+pub fn vc_snp_guest_request(
+    extended: bool,
+    psp_rc: &mut u64,
+    cmd: &mut SnpGuestRequestCmd,
+) -> Result<(), ()> {
+    let ghcb: *mut Ghcb = vc_get_ghcb();
+    let info1: u64 = pgtable_va_to_pa((*cmd).req_shared_page()).as_u64();
+    let info2: u64 = pgtable_va_to_pa((*cmd).resp_shared_page()).as_u64();
+
+    let exit_code: u64 = if extended {
+        GHCB_NAE_SNP_EXT_GUEST_REQUEST
+    } else {
+        GHCB_NAE_SNP_GUEST_REQUEST
+    };
+
+    unsafe {
+        if extended {
+            let data_gpa: u64 = pgtable_va_to_pa((*cmd).data_gva()).as_u64();
+            (*ghcb).set_rax(data_gpa);
+            (*ghcb).set_rbx((*cmd).data_npages() as u64);
+        }
+
+        vc_perform_vmgexit(ghcb, exit_code, info1, info2);
+
+        if !(*ghcb).is_sw_exit_info_2_valid() {
+            return Err(());
+        }
+
+        *psp_rc = (*ghcb).sw_exit_info_2();
+
+        // The number of expected pages are returned in RBX
+        if extended && *psp_rc == SNP_GUEST_REQ_INVALID_LEN {
+            (*cmd).set_data_npages((*ghcb).rbx() as usize);
+        }
+
+        (*ghcb).clear();
+    }
+
+    Ok(())
 }
 
 pub fn vc_get_apic_ids(bsp_apic_id: u32) -> Vec<u32> {
