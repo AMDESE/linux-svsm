@@ -54,6 +54,10 @@ pub const SNP_GUEST_REQ_ERR_BUSY: u64 = BIT!(33);
 
 /// 0
 pub const SNP_MSG_TYPE_INVALID: u8 = 0;
+/// 5
+pub const SNP_MSG_REPORT_REQ: u8 = 5;
+/// 6
+pub const SNP_MSG_REPORT_RSP: u8 = 6;
 
 /// 1
 const HDR_VERSION: u8 = 1;
@@ -737,5 +741,33 @@ impl SnpGuestRequestCmd {
         }
 
         result
+    }
+
+    /// Copy to buf the certificates obtained in the last extended report request
+    pub fn copy_from_data(&self, buf: VirtAddr, buf_size: usize) {
+        unsafe {
+            ptr::copy_nonoverlapping(
+                self.data_gva.as_mut_ptr::<u8>(),
+                buf.as_mut_ptr::<u8>(),
+                min(buf_size, SNP_GUEST_REQ_MAX_DATA_SIZE as usize),
+            );
+        }
+    }
+
+    /// Check if the first sz bytes of the data buffer are empty
+    pub fn is_data_bytes_empty(&self, sz: usize) -> bool {
+        let m: usize = min(sz, SNP_GUEST_REQ_MAX_DATA_SIZE);
+        let buf: *const [u8; SNP_GUEST_REQ_MAX_DATA_SIZE] =
+            self.data_gva.as_ptr() as *const [u8; SNP_GUEST_REQ_MAX_DATA_SIZE];
+        unsafe { (*buf)[..m].is_empty() }
+    }
+
+    /// Clear sz bytes from the data buffer
+    pub fn clear_data_bytes(&self, sz: usize) {
+        memset(
+            self.data_gva.as_mut_ptr::<u8>(),
+            0u8,
+            min(sz, SNP_GUEST_REQ_MAX_DATA_SIZE),
+        );
     }
 }
