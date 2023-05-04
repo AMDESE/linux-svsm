@@ -28,6 +28,8 @@ pub mod globals;
 pub mod mem;
 /// Implementation of SVSM protocols and calls
 pub mod protocols;
+/// PSP firmware messages
+pub mod psp;
 /// Handle requests from the SVSM guest
 pub mod svsm_request;
 /// Auxiliary functions and macros
