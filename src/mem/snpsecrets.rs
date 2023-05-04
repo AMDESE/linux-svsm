@@ -8,8 +8,6 @@
 
 use crate::{funcs, get_svsm_secrets_page, prints};
 
-use x86_64::addr::VirtAddr;
-
 /// 32
 pub const VMPCK_SIZE: usize = 32;
 
@@ -57,4 +55,16 @@ impl SnpSecrets {
     funcs!(svsm_max_version, u32);
     funcs!(svsm_guest_vmpl, u8);
     funcs!(vmpck0, [u8; VMPCK_SIZE]);
+}
+
+pub fn disable_vmpck0() {
+    let svsm_secrets_ptr: *mut SnpSecrets = get_svsm_secrets_page().as_mut_ptr();
+    prints!("WARNING: VMPCK0 disabled!\n");
+    unsafe { (*svsm_secrets_ptr).clear_vmpck0() }
+}
+
+pub fn is_vmpck0_clear() -> bool {
+    let svsm_secrets_ptr: *mut SnpSecrets = get_svsm_secrets_page().as_mut_ptr();
+
+    unsafe { (*svsm_secrets_ptr).is_vmpck0_clear() }
 }
