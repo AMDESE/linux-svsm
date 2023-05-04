@@ -5,7 +5,7 @@
  * Authors: Claudio Carvalho <cclaudio@linux.ibm.com>
  */
 
-use crate::BIT;
+use crate::{funcs, getter_func, BIT};
 
 use x86_64::addr::VirtAddr;
 
@@ -90,4 +90,9 @@ pub struct SnpGuestRequestCmd {
     is_initialized: bool,
 }
 
+impl SnpGuestRequestCmd {
+    getter_func!(req_shared_page, VirtAddr);
+    getter_func!(resp_shared_page, VirtAddr);
+    getter_func!(data_gva, VirtAddr);
+    funcs!(data_npages, usize);
 }
