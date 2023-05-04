@@ -5,9 +5,19 @@
  * Authors: Claudio Carvalho <cclaudio@linux.ibm.com>
  */
 
-use crate::mem::{mem_allocate, pgtable_make_pages_shared};
-use crate::{funcs, getter_func, prints, ALIGN, ALIGNED, BIT, PAGE_COUNT, PAGE_SHIFT, PAGE_SIZE};
+use crate::bindings::{
+    EVP_CIPHER_CTX_ctrl, EVP_CIPHER_CTX_free, EVP_CIPHER_CTX_new, EVP_CIPHER_CTX_set_key_length,
+    EVP_DecryptInit_ex, EVP_EncryptInit_ex, EVP_aes_256_gcm, EVP_CIPHER_CTX,
+    EVP_CTRL_GCM_SET_IVLEN,
+};
+use crate::mem::{mem_allocate, pgtable_make_pages_shared, SnpSecrets, VMPCK_SIZE};
+use crate::{
+    funcs, get_svsm_secrets_page, getter_func, prints, ALIGN, ALIGNED, BIT, PAGE_COUNT, PAGE_SHIFT,
+    PAGE_SIZE,
+};
 
+use core::ptr;
+use cty::c_int;
 use x86_64::addr::VirtAddr;
 
 ///
@@ -47,6 +57,8 @@ const IV_SIZE: c_int = 12;
 
 /// 0x4000
 pub const SNP_GUEST_REQ_MAX_DATA_SIZE: usize = 0x4000;
+
+const U64_SIZE: usize = core::mem::size_of::<u64>();
 
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
@@ -136,5 +148,122 @@ impl SnpGuestRequestCmd {
         }
 
         Ok(())
+    }
+
+    /// Allocate the openssl context and initialize it for encrypting or
+    /// decrypting SNP_GUEST_REQUEST messages. The message sequence number
+    /// is used as IV.
+    unsafe fn init_ossl_ctx(
+        &mut self,
+        encryption: bool,
+        seqno: &u64,
+    ) -> Result<*mut EVP_CIPHER_CTX, ()> {
+        // Clear the OpenSSL context before (re)using it
+        if !self.ossl_ctx.is_null() {
+            EVP_CIPHER_CTX_free(self.ossl_ctx.as_mut_ptr());
+            self.ossl_ctx = VirtAddr::zero();
+        }
+
+        // Create new context
+        let ctx: *mut EVP_CIPHER_CTX = EVP_CIPHER_CTX_new();
+        if ctx.is_null() {
+            prints!("ERR: Failed to get a new openssl CTX for encryption\n");
+            return Err(());
+        }
+        self.ossl_ctx = VirtAddr::from_ptr(ctx);
+
+        if encryption {
+            // Set encrypt operation
+            let ret: c_int = EVP_EncryptInit_ex(
+                ctx,
+                EVP_aes_256_gcm(),
+                ptr::null_mut(),
+                ptr::null(),
+                ptr::null(),
+            );
+            if ret != 1 {
+                prints!("ERR: EVP_EncryptInit_ex failed, rc={}\n", ret);
+                return Err(());
+            }
+        } else {
+            // Set decrypt operation
+            let ret: c_int = EVP_DecryptInit_ex(
+                ctx,
+                EVP_aes_256_gcm(),
+                ptr::null_mut(),
+                ptr::null(),
+                ptr::null(),
+            );
+            if ret != 1 {
+                prints!("ERR: EVP_DecryptInit_ex failed, rc={}\n", ret);
+                return Err(());
+            }
+        }
+
+        // Provide key size
+        let __vmpck_size: c_int = match c_int::try_from(VMPCK_SIZE) {
+            Ok(c) => c,
+            Err(_) => {
+                prints!("ERR: VMPCK too big for c_int\n");
+                return Err(());
+            }
+        };
+        let mut ret: c_int = EVP_CIPHER_CTX_set_key_length(ctx, __vmpck_size);
+        if ret != 1 {
+            prints!(
+                "ERR: Failed to set the key length for encryption ({})\n",
+                ret
+            );
+            return Err(());
+        }
+
+        // Provide iv size
+        let __gcm_set_ivlen: c_int = match c_int::try_from(EVP_CTRL_GCM_SET_IVLEN) {
+            Ok(c) => c,
+            Err(_) => {
+                prints!("ERR: Operation SET_IVLEN too big for c_int\n");
+                return Err(());
+            }
+        };
+        ret = EVP_CIPHER_CTX_ctrl(ctx, __gcm_set_ivlen, IV_SIZE, ptr::null_mut());
+        if ret != 1 {
+            prints!("ERR: EVP_CIPHER_CTX_ctrl failed ({})\n", ret);
+            return Err(());
+        }
+
+        // Provide key and iv
+        let svsm_secrets_ptr: *mut SnpSecrets = get_svsm_secrets_page().as_mut_ptr();
+        let key: [u8; VMPCK_SIZE] = (*svsm_secrets_ptr).vmpck0();
+
+        let mut iv: [u8; IV_SIZE as usize] = [0u8; IV_SIZE as usize];
+        iv[..U64_SIZE].copy_from_slice(&u64::to_ne_bytes(*seqno));
+
+        if encryption {
+            ret = EVP_EncryptInit_ex(
+                ctx,
+                ptr::null(),
+                ptr::null_mut(),
+                &key as *const _ as *const u8,
+                &iv as *const _ as *const u8,
+            );
+            if ret != 1 {
+                prints!("ERR: EVP_EncryptInit_ex failed ({})\n", ret);
+                return Err(());
+            }
+        } else {
+            ret = EVP_DecryptInit_ex(
+                ctx,
+                ptr::null(),
+                ptr::null_mut(),
+                &key as *const _ as *const u8,
+                &iv as *const _ as *const u8,
+            );
+            if ret != 1 {
+                prints!("ERR: EVP_DecryptInit_ex failed, rc={}\n", ret);
+                return Err(());
+            }
+        }
+
+        Ok(ctx)
     }
 }
