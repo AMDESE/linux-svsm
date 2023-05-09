@@ -56,7 +56,7 @@ svsm.bin: svsm.bin.elf
 
 # "-Wl,-u,malloc" prevents the linker from removing the wrapper.rs symbols
 svsm.bin.elf: $(EXT_LIBS) $(OBJS) src/start/svsm.lds
-	$(GCC) $(LD_FLAGS) -o $@ $(OBJS) -Wl,-u,malloc -Wl,--start-group $(EXT_LIBS) -Wl,--end-group
+	$(GCC) $(LD_FLAGS) -o $@ $(OBJS) -Wl,-u,malloc -Wl,-u,abort -Wl,--start-group $(EXT_LIBS) -Wl,--end-group
 
 %.a: src/*.rs src/cpu/*.rs src/mem/*.rs src/protocols/*.rs src/util/*.rs
 	@xargo build --features $(FEATURES)
