@@ -7,6 +7,7 @@
  */
 
 use crate::protocols::error_codes::*;
+use crate::util::util::memset;
 use crate::vmsa_list::VMSA_LIST;
 use crate::*;
 
@@ -101,6 +102,10 @@ struct PvalidateRequest {
 impl PvalidateRequest {
     funcs!(entries, u16);
     funcs!(next, u16);
+}
+
+fn zero_memory_range(va: VirtAddr, len: usize) {
+    memset(va.as_mut_ptr(), 0, len);
 }
 
 unsafe fn address_valid(gfn: PhysFrame, page_size: u32) -> bool {
@@ -402,6 +407,29 @@ unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bo
     }
 
     if action != 0 {
+        let gpa_end: PhysAddr = gpa + len;
+
+        /*
+         * Zero-out the memory before granting access to the lower VMPL levels
+         * to guard against a malicious hypervisor trying to disclose VMPL0
+         * data to lower VMPL levels.
+         *
+         * Since the ISA range from 0xC0000 - 0xFFFFF is used for BIOS ROMs and
+         * is read-only, do not attempt to zero out the range as it could
+         * generate an infinite #NPF loop.
+         */
+        if gpa_end.as_u64() <= 0xc0000 || gpa.as_u64() >= 0x100000 {
+            zero_memory_range(map.va(), len as usize);
+        } else if page_size == 1 && gpa.as_u64() == 0 {
+            /*
+             * It is a 2MB page at GPA 0:
+             *   - Clear the range from 0x0 - 0xBFFFF
+             *   - Clear the range from 0x100000 - 0x200000
+             */
+            zero_memory_range(map.va(), 0xc0000);
+            zero_memory_range(map.va() + 0x100000 as u64, 0x100000);
+        }
+
         let ret: u32 = grant_vmpl_access(map.va(), page_size, VMPL::Vmpl1 as u8);
         if ret != 0 {
             (*vmsa).set_rax(SVSM_ERR_PROTOCOL_BASE + ret as u64);
