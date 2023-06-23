@@ -12,11 +12,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
       - name: Prepare tests
-        run: rustup component add rust-src --toolchain nightly
+        run: make prereq RUST_INSTALLER_ARGS='-y'
       - name: Run tests
-        run: cargo test --target=x86_64-unknown-linux-gnu -Z build-std
+        run: make test
