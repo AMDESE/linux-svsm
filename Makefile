@@ -86,7 +86,7 @@ test: bindgen_out.rs
 prereq: .prereq
 
 .prereq:
-	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- $(RUST_INSTALLER_ARGS)
 	source $(HOME)/.cargo/env
 	echo "source $(HOME)/.cargo/env" >> ~/.bashrc
 	rustup component add rust-src
