@@ -8,5 +8,5 @@
 
 /// SSL
 #[cfg_attr(test, path = "nossl.rs")]
-#[cfg_attr(not(test), path = "nossl.rs")]
+#[cfg_attr(not(test), path = "openssl.rs")]
 pub mod ssl;
