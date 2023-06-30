@@ -22,6 +22,8 @@ pub mod bindings;
 pub mod bios;
 /// Prepare and start SMP
 pub mod cpu;
+/// Crypto API
+pub mod crypto;
 /// Global constants
 pub mod globals;
 /// Prepare page table, handle memory (de)allocations
