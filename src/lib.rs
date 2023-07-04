@@ -33,6 +33,7 @@ pub mod util;
 /// Handle the list of VMSA pages
 pub mod vmsa_list;
 /// Wrappers for external dependencies
+#[cfg(not(test))]
 pub mod wrapper;
 
 extern crate alloc;
