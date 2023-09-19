@@ -269,9 +269,10 @@ fn vc_msr_protocol(request: u64) -> u64 {
 
 pub extern "x86-interrupt" fn vc_handler(stack_frame: InterruptStackFrame, error_code: u64) {
     let rip: u64 = stack_frame.instruction_pointer.as_u64();
+    let cr2: u64 = read_cr2();
 
     prints!(
-        "Unhandled #VC exception: {:#?}\n{:#?}\nRIP={rip}\n",
+        "Unhandled #VC exception: {:#x}\n{:#?}\nRIP={rip:#x}, CR2={cr2:#x}\n",
         error_code,
         stack_frame
     );
