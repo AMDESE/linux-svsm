@@ -1,5 +1,9 @@
 # Linux SVSM (Secure VM Service Module)
 
+\*\* The Linux SVSM project is no longer being actively developed.
+Users of Linux SVSM should switch over to the
+[COCONUT SVSM project](https://github.com/coconut-svsm/svsm). \*\*
+
 ## Table of contents
 
 1. [What is this magic?](#introduction)
