@@ -83,13 +83,13 @@ pub fn pvalidate(va: u64, page_size: u32, validation: u32) -> u32 {
     let mut carry: u32;
 
     unsafe {
-        asm!(".byte 0xf2,0x0f,0x01,0xff",
-             "xor rcx, rcx",
+        asm!("xor r8, r8",
+             ".byte 0xf2,0x0f,0x01,0xff",
              "jnc 1f",
-             "inc rcx",
+             "inc r8",
              "1:",
              in("rax") va, in("rcx") page_size, in("rdx") validation,
-             lateout("rax") ret, lateout("rcx") carry,
+             lateout("rax") ret, lateout("r8") carry,
              options(nostack));
     }
 
