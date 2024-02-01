@@ -319,8 +319,8 @@ if [ -n "${SEV_GUEST}" ]; then
 	fi
 
 	if [ -n "$SEV_SNP_GUEST" -a -n "$SNP_UPM" ]; then
-		add_opts "-machine type=q35,confidential-guest-support=sev0,memory-backend=ram1,kvm-type=protected,vmport=off${SVSM:+,svsm=$SVSM}"
-		add_opts "-object memory-backend-memfd-private,id=ram1,size=$MEM,share=true"
+		add_opts "-machine type=q35,confidential-guest-support=sev0,memory-backend=ram1,vmport=off${SVSM:+,svsm=$SVSM}"
+		add_opts "-object memory-backend-memfd,id=ram1,size=$MEM,share=true,prealloc=false"
 	else
 		add_opts "-m ${MEM}${MAX_MEM:+,slots=5,maxmem=$MAX_MEM}"
 		add_opts "-machine type=q35,confidential-guest-support=sev0,vmport=off${SVSM:+,svsm=$SVSM}"
