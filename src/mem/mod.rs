@@ -18,6 +18,8 @@ pub mod ghcb;
 pub mod map_guard;
 /// Page Table and its related operations
 pub mod pgtable;
+/// SNP Secrets
+pub mod snpsecrets;
 
 pub use crate::mem::alloc::{
     mem_allocate, mem_allocate_frame, mem_allocate_frames, mem_callocate, mem_create_stack,
@@ -31,6 +33,8 @@ pub use crate::mem::pgtable::{
 };
 
 pub use crate::mem::map_guard::MapGuard;
+
+pub use crate::mem::snpsecrets::{SnpSecrets, VMPCK_SIZE};
 
 pub use crate::mem::ghcb::ghcb_init;
 

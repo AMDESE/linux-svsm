@@ -16,16 +16,22 @@
 // overwrite _start().
 #![cfg_attr(not(test), no_main)]
 
+/// Bindgen generated FFI bindings and test cases
+pub mod bindings;
 /// Initialize BIOS for the guest
 pub mod bios;
 /// Prepare and start SMP
 pub mod cpu;
+/// Crypto API
+pub mod crypto;
 /// Global constants
 pub mod globals;
 /// Prepare page table, handle memory (de)allocations
 pub mod mem;
 /// Implementation of SVSM protocols and calls
 pub mod protocols;
+/// PSP firmware messages
+pub mod psp;
 /// Handle requests from the SVSM guest
 pub mod svsm_request;
 /// Auxiliary functions and macros
@@ -33,6 +39,7 @@ pub mod util;
 /// Handle the list of VMSA pages
 pub mod vmsa_list;
 /// Wrappers for external dependencies
+#[cfg(not(test))]
 pub mod wrapper;
 
 extern crate alloc;
@@ -42,6 +49,7 @@ use crate::cpu::rmpadjust;
 use crate::cpu::*;
 use crate::globals::*;
 use crate::mem::*;
+use crate::psp::request::snp_guest_request_init;
 use crate::svsm_request::svsm_request_loop;
 use crate::util::*;
 use crate::vmsa::*;
@@ -144,6 +152,9 @@ pub extern "C" fn svsm_main() -> ! {
 
     // Initialize and start APs
     smp_init();
+
+    // Initialize resources for SNP_GUEST_REQUEST messages
+    snp_guest_request_init();
 
     // Load BIOS
     start_bios();

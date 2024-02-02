@@ -20,7 +20,6 @@ memoffset = "0.6"
 paste = "1.0"
 memchr = { version = "2", default-features = false }
 uuid = { version = "1", default-features = false }
-cty = "0.2.2"
 
 [dependencies.lazy_static]
 version = "1.0"
