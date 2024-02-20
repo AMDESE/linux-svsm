@@ -24,6 +24,8 @@ pub use crate::mem::alloc::{
     mem_free, mem_free_frame, mem_free_frames, mem_init, mem_reallocate,
 };
 
+pub use crate::mem::ca::is_in_calling_area;
+
 pub use crate::mem::pgtable::{
     pgtable_init, pgtable_make_pages_np, pgtable_make_pages_nx, pgtable_make_pages_private,
     pgtable_make_pages_shared, pgtable_pa_to_va, pgtable_print_pte_pa, pgtable_print_pte_va,

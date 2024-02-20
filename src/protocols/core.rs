@@ -43,11 +43,14 @@ impl VersionInfo {
     funcs!(max, u32);
 }
 
-static PROTOCOL_INFO: [VersionInfo; 1] = [VersionInfo { min: 1, max: 1 }];
+static PROTOCOL_INFO: [VersionInfo; 2] = [
+    VersionInfo { min: 1, max: 1 },
+    VersionInfo { min: 1, max: 1 },
+];
 
-#[allow(dead_code)]
-enum ProtocolId {
+pub enum ProtocolId {
     ProtocolId0,
+    ProtocolId1,
 
     MaxProtocolId,
 }
@@ -439,13 +442,6 @@ unsafe fn handle_pvalidate(vmsa: *mut Vmsa, entry: *const PvalidateEntry) -> (bo
 
     (*vmsa).set_rax(SVSM_SUCCESS);
     (true, flush)
-}
-
-fn is_in_calling_area(gpa: PhysAddr) -> bool {
-    let gfn: PhysFrame = PhysFrame::containing_address(gpa);
-    let caa_gpa: PhysAddr = unsafe { PERCPU.caa(VMPL::Vmpl1) };
-    let caa_gfn: PhysFrame = PhysFrame::containing_address(caa_gpa);
-    gfn == caa_gfn
 }
 
 unsafe fn handle_pvalidate_request(vmsa: *mut Vmsa) {
